@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GitHub } from "@/components/icons";
 
 const GH = "https://github.com/twill-lang/twill";
 
@@ -15,7 +16,13 @@ export function Nav() {
           <Link href="/docs/" className="transition-colors hover:text-text">Docs</Link>
           <a href={`${GH}/tree/main/examples`} className="hidden transition-colors hover:text-text sm:inline">Examples</a>
           <a href={`${GH}/releases`} className="transition-colors hover:text-text">Releases</a>
-          <a href={GH} className="transition-colors hover:text-text">GitHub</a>
+          <a
+            href={GH}
+            aria-label="twill on GitHub"
+            className="transition-colors hover:text-text"
+          >
+            <GitHub size={17} />
+          </a>
         </div>
       </nav>
     </header>
@@ -31,7 +38,13 @@ export function Footer() {
           <a href="https://github.com/martin-k-m" className="text-link hover:underline">Martin Muskov</a>.
         </p>
         <p className="sm:ml-auto">
-          <a href="https://github.com/twill-lang" className="text-link hover:underline">github.com/twill-lang</a>
+          <a
+            href="https://github.com/twill-lang"
+            className="inline-flex items-center gap-1.5 text-link hover:underline"
+          >
+            <GitHub size={15} />
+            github.com/twill-lang
+          </a>
         </p>
       </div>
     </footer>

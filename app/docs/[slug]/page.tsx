@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { DOCS, findDoc, load } from "@/lib/docs";
 import { Footer, Nav } from "@/components/chrome";
 import { Reveal } from "@/components/motion";
+import { ArrowUpRight } from "@/components/icons";
 
 export function generateStaticParams() {
   return DOCS.map((d) => ({ slug: d.slug }));
@@ -72,9 +73,10 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
             <p className="mt-2 text-sm text-muted">{doc.blurb}</p>
             <a
               href={`https://github.com/twill-lang/twill/blob/main/docs/${doc.file}`}
-              className="mt-3 inline-block text-sm text-link hover:underline"
+              className="mt-3 inline-flex items-center gap-1.5 text-sm text-link hover:underline"
             >
               Edit this page on GitHub
+              <ArrowUpRight size={14} />
             </a>
           </Reveal>
 

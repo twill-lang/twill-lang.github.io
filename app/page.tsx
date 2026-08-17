@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Code, Term } from "@/components/code";
 import { Enter, Reveal } from "@/components/motion";
 import { Footer, Nav } from "@/components/chrome";
+import { ArrowRight, ArrowUpRight, Book, Download } from "@/components/icons";
 
 const GH = "https://github.com/twill-lang/twill";
 
@@ -116,14 +117,16 @@ export default function Home() {
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
                 href="/docs/tutorial/"
-                className="rounded-lg bg-teal px-5 py-2.5 text-sm font-medium text-[#06201a] transition-transform hover:scale-[1.02] active:scale-[0.99]"
+                className="group inline-flex items-center gap-2 rounded-lg bg-teal px-5 py-2.5 text-sm font-medium text-[#06201a] transition-transform hover:scale-[1.02] active:scale-[0.99]"
               >
                 Start the tutorial
+                <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
               <a
                 href={`${GH}/releases`}
-                className="rounded-lg border border-edge px-5 py-2.5 text-sm font-medium transition-colors hover:border-teal"
+                className="inline-flex items-center gap-2 rounded-lg border border-edge px-5 py-2.5 text-sm font-medium transition-colors hover:border-teal"
               >
+                <Download size={16} />
                 Download a binary
               </a>
               <code className="rounded-lg border border-edge px-4 py-2.5 font-mono text-[13px] text-muted">
@@ -235,7 +238,13 @@ export default function Home() {
                   href={r.href}
                   className="group flex h-full flex-col rounded-xl border border-edge bg-raised p-4 transition-colors hover:border-teal"
                 >
-                  <span className="font-mono text-sm font-semibold text-teal">{r.name}</span>
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="font-mono text-sm font-semibold text-teal">{r.name}</span>
+                    <ArrowUpRight
+                      size={15}
+                      className="text-muted transition-colors group-hover:text-teal"
+                    />
+                  </span>
                   <span className="mt-1.5 text-sm leading-relaxed text-muted">{r.blurb}</span>
                 </a>
               </Reveal>
@@ -265,9 +274,11 @@ export default function Home() {
           <Reveal>
             <Link
               href="/docs/"
-              className="inline-flex items-center gap-2 rounded-lg bg-teal px-5 py-2.5 text-sm font-medium text-[#06201a] transition-transform hover:scale-[1.02]"
+              className="group inline-flex items-center gap-2 rounded-lg bg-teal px-5 py-2.5 text-sm font-medium text-[#06201a] transition-transform hover:scale-[1.02]"
             >
+              <Book size={16} />
               Browse the docs
+              <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
             </Link>
           </Reveal>
         </Section>
