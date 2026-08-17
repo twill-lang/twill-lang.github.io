@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Code, Term } from "@/components/code";
-import { Enter, Reveal } from "@/components/motion";
+import { Enter, Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Footer, Nav } from "@/components/chrome";
 import { ArrowRight, ArrowUpRight, Book, Download } from "@/components/icons";
 
@@ -81,39 +81,52 @@ const ECOSYSTEM = [
   { name: "bobbin", blurb: "Shared internals across the ecosystem.", href: "https://github.com/twill-lang/bobbin" },
 ];
 
+const NOT_DONE = [
+  "It is interpreted. Tensor ops loop in Go, and there is no vectorized or GPU backend.",
+  "Autodiff is reverse-mode and first-order. grad(grad(f)) is refused rather than silently answered with zero.",
+  "The shape checker is best-effort, not a full type system.",
+  "The self-hosted compiler runs on the Go bootstrap, not yet as its own Go-free binary.",
+];
+
 export default function Home() {
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-5xl px-5">
-        {/* Hero */}
-        <section className="py-20 sm:py-28">
+      <main className="mx-auto max-w-6xl px-5 sm:px-8">
+        <section className="pb-20 pt-16 sm:pb-28 sm:pt-24">
           <Enter>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/twill-mark.svg"
-              alt="twill"
-              width={72}
-              height={72}
-              className="mb-8"
-            />
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/twill-mark.svg" alt="twill" width={44} height={44} />
+              <span className="t-eyebrow rounded-full border border-edge px-2.5 py-1 text-muted">
+                MIT licensed
+              </span>
+              <span className="t-eyebrow rounded-full border border-edge px-2.5 py-1 text-muted">
+                Early prototype
+              </span>
+            </div>
           </Enter>
           <Enter delay={0.08}>
-            <h1 className="max-w-3xl text-balance text-3xl font-semibold leading-[1.15] tracking-tight sm:text-5xl">
-              A small language where tensors are the primitive,{" "}
-              <code className="font-mono text-teal">grad</code> is built in, and a shape
-              mistake is an error you see before the program runs.
+            <h1 className="t-display mt-10 max-w-[22ch] text-balance">
+              A language where tensors are the primitive.
             </h1>
           </Enter>
-          <Enter delay={0.16}>
-            <p className="mt-6 max-w-2xl text-pretty text-base leading-relaxed text-muted sm:text-lg">
+          <Enter delay={0.14}>
+            <p className="t-lead mt-6 max-w-[52ch]">
+              twill is a small language where{" "}
+              <code className="font-mono text-teal">grad</code> is built in and a shape
+              mistake is an error you see before the program runs.
+            </p>
+          </Enter>
+          <Enter delay={0.2}>
+            <p className="mt-5 max-w-[62ch] text-sm leading-relaxed text-muted">
               Most machine-learning code is a language plus a numeric framework bolted on
               top. twill goes the other way: differentiation is a language operation rather
               than a library call, and a static checker reads your shapes before anything
               executes.
             </p>
           </Enter>
-          <Enter delay={0.24}>
+          <Enter delay={0.28}>
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
                 href="/docs/tutorial/"
@@ -129,36 +142,39 @@ export default function Home() {
                 <Download size={16} />
                 Download a binary
               </a>
-              <code className="rounded-lg border border-edge px-4 py-2.5 font-mono text-[13px] text-muted">
-                go install github.com/twill-lang/twill/cmd/twill@latest
-              </code>
+            </div>
+          </Enter>
+          <Enter delay={0.34}>
+            <div className="mt-5 max-w-full overflow-x-auto rounded-lg border border-edge px-4 py-3 font-mono text-[13px] text-muted">
+              <span className="select-none text-teal">$ </span>
+              <span className="whitespace-pre">go install github.com/twill-lang/twill/cmd/twill@latest</span>
             </div>
           </Enter>
         </section>
 
-        {/* The Monte Carlo example */}
         <Section
+          n="01"
           eyebrow="The whole of it"
           title="Price a European call, then differentiate the pricer for its Greeks"
           lead="No bumping, no second library. grad went through 200,000 simulated paths, a relu payoff and a mean, and landed on the closed-form Greeks."
         >
           <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr] lg:items-start">
-            <Code>{MONTE_CARLO}</Code>
-            <Term>{MONTE_CARLO_OUT}</Term>
+            <Code label="montecarlo_option.tw">{MONTE_CARLO}</Code>
+            <Term label="output">{MONTE_CARLO_OUT}</Term>
           </div>
         </Section>
 
-        {/* Shape errors */}
         <Section
+          n="02"
           eyebrow="Before anything runs"
           title="The most useful thing twill does is refuse to start"
           lead="twill check infers tensor shapes across the whole program and reports the ones that cannot line up. Parameters can carry shape annotations, which turn a contract into something the checker enforces at every call site."
         >
           <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-            <Code>{SHAPE_SIG}</Code>
-            <Term>{SHAPE_OUT}</Term>
+            <Code label="model.tw">{SHAPE_SIG}</Code>
+            <Term label="twill check">{SHAPE_OUT}</Term>
           </div>
-          <p className="mt-5 max-w-3xl text-sm leading-relaxed text-muted">
+          <p className="mt-6 max-w-[70ch] text-sm leading-relaxed text-muted">
             A dimension can be a literal, or a name. A name used more than once must be the
             same size, which is what lets the checker verify the return type of{" "}
             <code className="font-mono text-teal">fn mm(A: [n, k], B: [k, m]) -&gt; [n, m]</code>.
@@ -168,37 +184,34 @@ export default function Home() {
           </p>
         </Section>
 
-        {/* Three pillars */}
-        <Section eyebrow="Why" title="Three things fall out of building the language around it">
-          <div className="grid gap-4 sm:grid-cols-3">
+        <Section n="03" eyebrow="Why" title="Three things fall out of building the language around it">
+          <Stagger className="hairline-grid grid sm:grid-cols-3">
             {PILLARS.map((p, i) => (
-              <Reveal key={p.title} delay={i * 0.08}>
-                <div className="h-full rounded-xl border border-edge bg-raised p-5">
-                  <h3 className="font-mono text-sm font-semibold text-teal">{p.title}</h3>
-                  <p className="mt-2.5 text-sm leading-relaxed text-muted">{p.body}</p>
-                </div>
-              </Reveal>
+              <StaggerItem key={p.title} className="bg-raised p-6">
+                <span className="t-eyebrow text-teal">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="mt-3 text-base font-semibold tracking-tight">{p.title}</h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-muted">{p.body}</p>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         </Section>
 
-        {/* Units */}
         <Section
+          n="04"
           eyebrow="Units of measure"
           title="Price times quantity is money; dollars plus shares is refused"
           lead="Declare base units, annotate quantities, and the checker tracks units through arithmetic. Units are erased at runtime and cost nothing."
         >
           <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-            <Code>{UNITS}</Code>
-            <Term>{`$ twill check bad.tw\nbad.tw:6: shape error: unit mismatch: USD*share^-1 + share\n  6 | let bad = price + qty`}</Term>
+            <Code label="notional.tw">{UNITS}</Code>
+            <Term label="twill check">{`$ twill check bad.tw\nbad.tw:6: shape error: unit mismatch: USD*share^-1 + share\n  6 | let bad = price + qty`}</Term>
           </div>
         </Section>
 
-        {/* Self hosting */}
-        <Section eyebrow="Self-hosting" title="twill is being written in twill">
+        <Section n="05" eyebrow="Self-hosting" title="twill is being written in twill">
           <Reveal>
-            <div className="rounded-xl border border-teal/40 bg-raised p-6">
-              <p className="text-sm leading-relaxed text-muted">
+            <div className="rounded-xl border border-teal/35 bg-raised p-6 sm:p-8">
+              <p className="max-w-[72ch] text-sm leading-relaxed text-muted">
                 As of v1.5.0 this runs. The lexer, parser, checker, evaluator, tensor
                 kernels, formatter and CLI are written in the language itself, and the whole
                 tree executes on the Go bootstrap and reproduces the reference across every
@@ -207,13 +220,13 @@ export default function Home() {
                 <code className="font-mono text-teal">twill fmt</code> on every one it
                 formats.
               </p>
-              <p className="mt-4 text-sm leading-relaxed text-muted">
+              <p className="mt-4 max-w-[72ch] text-sm leading-relaxed text-muted">
                 Designing the subset a compiler needs was the point of doing it. Writing the
                 compiler first is how you find out what the subset has to be, instead of
                 guessing. It has already produced a numbered work queue of what the language
                 still needs, and a real bug in the reference lexer.
               </p>
-              <div className="mt-5 flex flex-wrap gap-4 text-sm">
+              <div className="mt-6 flex flex-wrap gap-5 text-sm">
                 <Link href="/docs/self-hosting/" className="text-link hover:underline">
                   How the port works
                 </Link>
@@ -225,52 +238,48 @@ export default function Home() {
           </Reveal>
         </Section>
 
-        {/* Ecosystem */}
         <Section
+          n="06"
           eyebrow="The ecosystem"
           title="Ten repositories, one language"
           lead="Everything downstream of the compiler is written in twill itself, which is the same experiment run again: a real program against the subset, with its own list of what is missing."
         >
-          <div className="grid gap-3 sm:grid-cols-2">
-            {ECOSYSTEM.map((r, i) => (
-              <Reveal key={r.name} delay={Math.min(i, 5) * 0.05}>
+          <Stagger className="hairline-grid grid sm:grid-cols-2" step={0.035}>
+            {ECOSYSTEM.map((r) => (
+              <StaggerItem key={r.name}>
                 <a
                   href={r.href}
-                  className="group flex h-full flex-col rounded-xl border border-edge bg-raised p-4 transition-colors hover:border-teal"
+                  className="group flex h-full flex-col bg-raised p-5 transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_7%,var(--raised))]"
                 >
                   <span className="flex items-center justify-between gap-3">
                     <span className="font-mono text-sm font-semibold text-teal">{r.name}</span>
                     <ArrowUpRight
                       size={15}
-                      className="text-muted transition-colors group-hover:text-teal"
+                      className="text-muted transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-teal"
                     />
                   </span>
                   <span className="mt-1.5 text-sm leading-relaxed text-muted">{r.blurb}</span>
                 </a>
-              </Reveal>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         </Section>
 
-        {/* Honesty */}
-        <Section eyebrow="What is not done yet" title="This is a prototype, and some of it is deliberately left for later">
-          <Reveal>
-            <ul className="grid gap-2.5 text-sm leading-relaxed text-muted sm:grid-cols-2">
-              {[
-                "It is interpreted. Tensor ops loop in Go, and there is no vectorized or GPU backend.",
-                "Autodiff is reverse-mode and first-order. grad(grad(f)) is refused rather than silently answered with zero.",
-                "The shape checker is best-effort, not a full type system.",
-                "The self-hosted compiler runs on the Go bootstrap, not yet as its own Go-free binary.",
-              ].map((t) => (
-                <li key={t} className="rounded-lg border border-edge bg-raised px-4 py-3">
-                  {t}
-                </li>
-              ))}
-            </ul>
-          </Reveal>
+        <Section
+          n="07"
+          eyebrow="What is not done yet"
+          title="This is a prototype, and some of it is deliberately left for later"
+        >
+          <Stagger className="hairline-grid grid sm:grid-cols-2">
+            {NOT_DONE.map((t) => (
+              <StaggerItem key={t} className="bg-raised px-5 py-4 text-sm leading-relaxed text-muted">
+                {t}
+              </StaggerItem>
+            ))}
+          </Stagger>
         </Section>
 
-        <Section eyebrow="Read on" title="Documentation">
+        <Section n="08" eyebrow="Read on" title="Documentation">
           <Reveal>
             <Link
               href="/docs/"
@@ -288,31 +297,39 @@ export default function Home() {
   );
 }
 
+/**
+ * Section header. The label and index sit in their own column on wide screens
+ * so the eye gets a fixed left edge to run down; below that breakpoint they
+ * stack, because a 96px column at 375px is a wasted third of the line.
+ */
 function Section({
+  n,
   eyebrow,
   title,
   lead,
   children,
 }: {
+  n: string;
   eyebrow: string;
   title: string;
   lead?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-t border-edge py-16 sm:py-20">
+    <section className="border-t border-edge py-16 sm:py-24">
       <Reveal>
-        <p className="font-mono text-xs uppercase tracking-widest text-teal">{eyebrow}</p>
-        <h2 className="mt-3 max-w-3xl text-balance text-xl font-semibold tracking-tight sm:text-2xl">
-          {title}
-        </h2>
-        {lead && (
-          <p className="mt-3 max-w-3xl text-pretty text-sm leading-relaxed text-muted sm:text-base">
-            {lead}
+        <div className="grid gap-x-10 gap-y-4 lg:grid-cols-[7rem_minmax(0,1fr)]">
+          <p className="t-eyebrow flex items-baseline gap-2 pt-1.5 text-muted lg:flex-col lg:gap-1.5">
+            <span className="text-teal">{n}</span>
+            <span>{eyebrow}</span>
           </p>
-        )}
+          <div>
+            <h2 className="t-headline max-w-[24ch] text-balance">{title}</h2>
+            {lead && <p className="t-lead mt-4 max-w-[62ch] text-[0.9375rem]">{lead}</p>}
+          </div>
+        </div>
       </Reveal>
-      <div className="mt-8">{children}</div>
+      <div className="mt-10 lg:pl-[9.5rem]">{children}</div>
     </section>
   );
 }
