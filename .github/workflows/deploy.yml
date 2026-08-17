@@ -1,0 +1,60 @@
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+
+  # The docs are fetched from twill-lang/twill at build time and baked into the
+  # HTML, so a docs edit in that repository does not reach this site until
+  # something rebuilds it. Add a step there that fires this:
+  #   gh api repos/twill-lang/twill-lang.github.io/dispatches -f event_type=docs-changed
+  repository_dispatch:
+    types: [docs-changed]
+
+  # A floor under the above, so a missed dispatch costs a day rather than
+  # forever. Off the hour because that is the most contended runner slot.
+  schedule:
+    - cron: "41 5 * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # lib/docs.ts throws on a failed fetch rather than rendering a partial
+      # page, so a network problem fails the build here instead of publishing a
+      # doc with its middle missing.
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

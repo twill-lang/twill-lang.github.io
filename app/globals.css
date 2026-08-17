@@ -1,0 +1,146 @@
+@import "tailwindcss";
+
+/* The palette is docs/brand.md in the twill repo, unchanged. Light temper puts
+   ink on near-white with a mint cast; dark temper is the `deep` ground the mark
+   was drawn against. No toggle: the OS setting is the whole of it. */
+:root {
+  --pale: #d2f0e4;
+  --mint: #a8dccb;
+  --accent: #7fe3c4;
+  --teal: #4fb79b;
+  --deep: #12332c;
+  --ink: #0b1512;
+
+  --ground: #f6fbf8;
+  --raised: #ffffff;
+  --edge: #dce9e3;
+  --text: var(--ink);
+  --muted: #4a635a;
+  --link: #2f7a66;
+  --code-ground: #12332c;
+  --code-text: #d2f0e4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0d2621;
+    --raised: #12332c;
+    --edge: #1e4a40;
+    --text: #dcefe7;
+    --muted: #8fb3a7;
+    --link: #7fe3c4;
+    --code-ground: #0a1f1a;
+    --code-text: #d2f0e4;
+  }
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-raised: var(--raised);
+  --color-edge: var(--edge);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-link: var(--link);
+  --color-accent: var(--accent);
+  --color-teal: var(--teal);
+  --color-pale: var(--pale);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Syntax colours for the .tw blocks. Kept to four roles: anything finer starts
+   competing with the prose for attention. */
+.tok-kw { color: var(--accent); }
+.tok-fn { color: var(--mint); }
+.tok-num { color: #9fd8ff; }
+.tok-str { color: #ffd9a8; }
+.tok-com { color: #6f9488; font-style: italic; }
+
+/* Rendered markdown from the twill repo. Written out rather than pulled in with
+   a typography plugin because the docs use a narrow set of elements and the
+   plugin's defaults fight the palette above at every turn. */
+.prose-twill { line-height: 1.7; }
+.prose-twill > * + * { margin-top: 1.1rem; }
+.prose-twill h1, .prose-twill h2, .prose-twill h3, .prose-twill h4 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  scroll-margin-top: 5rem;
+}
+.prose-twill h1 { font-size: 1.75rem; margin-top: 2.5rem; }
+.prose-twill h2 {
+  font-size: 1.3rem;
+  margin-top: 2.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--edge);
+}
+.prose-twill h3 { font-size: 1.05rem; margin-top: 2rem; }
+.prose-twill p, .prose-twill li { color: var(--muted); }
+.prose-twill strong { color: var(--text); font-weight: 600; }
+.prose-twill a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
+.prose-twill ul, .prose-twill ol { padding-left: 1.25rem; }
+.prose-twill ul { list-style: disc; }
+.prose-twill ol { list-style: decimal; }
+.prose-twill li + li { margin-top: 0.4rem; }
+.prose-twill code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.875em;
+  color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 10%, transparent);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.prose-twill pre {
+  background: var(--code-ground);
+  color: var(--code-text);
+  border: 1px solid var(--edge);
+  border-radius: 0.5rem;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+/* Inside a block the tint and padding are the wrapper's job, not the code's. */
+.prose-twill pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+.prose-twill blockquote {
+  border-left: 2px solid var(--teal);
+  padding-left: 1rem;
+  color: var(--muted);
+}
+.prose-twill hr { border: 0; border-top: 1px solid var(--edge); margin: 2rem 0; }
+.prose-twill table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  display: block;
+  overflow-x: auto;
+}
+.prose-twill th, .prose-twill td {
+  border: 1px solid var(--edge);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+.prose-twill th { background: var(--raised); font-weight: 600; }
+.prose-twill td { color: var(--muted); }
+.prose-twill img { max-width: 100%; height: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
