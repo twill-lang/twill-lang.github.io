@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DOCS, findDoc, load } from "@/lib/docs";
+import { DOCS, SECTIONS, findDoc, load } from "@/lib/docs";
 import { Footer, Nav } from "@/components/chrome";
 import { Reveal } from "@/components/motion";
+import { Toc } from "@/components/toc";
 import { ArrowUpRight } from "@/components/icons";
 
 export function generateStaticParams() {
@@ -38,23 +39,23 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
   return (
     <>
       <Nav />
-      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 lg:grid-cols-[200px_minmax(0,1fr)_180px]">
+      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[190px_minmax(0,1fr)] xl:grid-cols-[190px_minmax(0,1fr)_190px]">
         {/* Every doc, so a reader can move between them without going back. */}
         <nav className="hidden text-sm lg:block">
-          <div className="sticky top-20 space-y-5">
-            {["Start here", "Reference", "Under the hood", "Evidence"].map((section) => (
+          <div className="sticky top-24 space-y-6">
+            {SECTIONS.map((section) => (
               <div key={section}>
-                <p className="font-mono text-[10px] uppercase tracking-widest text-teal">{section}</p>
-                <ul className="mt-2 space-y-1.5">
+                <p className="t-eyebrow text-muted">{section}</p>
+                <ul className="mt-2.5 space-y-0.5 border-l border-edge">
                   {DOCS.filter((d) => d.section === section).map((d) => (
                     <li key={d.slug}>
                       <Link
                         href={`/docs/${d.slug}/`}
-                        className={
+                        className={`-ml-px block border-l py-1 pl-3 text-[13px] transition-colors ${
                           d.slug === doc.slug
-                            ? "text-text"
-                            : "text-muted transition-colors hover:text-text"
-                        }
+                            ? "border-teal text-text"
+                            : "border-transparent text-muted hover:border-edge hover:text-text"
+                        }`}
                       >
                         {d.title}
                       </Link>
@@ -68,12 +69,12 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
 
         <main className="min-w-0">
           <Reveal y={10}>
-            <p className="font-mono text-xs uppercase tracking-widest text-teal">{doc.section}</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">{doc.title}</h1>
-            <p className="mt-2 text-sm text-muted">{doc.blurb}</p>
+            <p className="t-eyebrow text-teal">{doc.section}</p>
+            <h1 className="t-title mt-3">{doc.title}</h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted">{doc.blurb}</p>
             <a
               href={`https://github.com/twill-lang/twill/blob/main/docs/${doc.file}`}
-              className="mt-3 inline-flex items-center gap-1.5 text-sm text-link hover:underline"
+              className="mt-4 inline-flex items-center gap-1.5 text-sm text-link hover:underline"
             >
               Edit this page on GitHub
               <ArrowUpRight size={14} />
@@ -81,39 +82,35 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
           </Reveal>
 
           {/* The markdown is twill's own, fetched at build time. */}
-          <article className="prose-twill mt-10" dangerouslySetInnerHTML={{ __html: html }} />
+          <article
+            className="prose-twill mt-10 border-t border-edge pt-8"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
 
-          <nav className="mt-16 flex gap-3 border-t border-edge pt-6 text-sm">
+          <nav className="mt-16 flex flex-col gap-3 border-t border-edge pt-6 text-sm sm:flex-row">
             {prev && (
-              <Link href={`/docs/${prev.slug}/`} className="text-link hover:underline">
-                ← {prev.title}
+              <Link
+                href={`/docs/${prev.slug}/`}
+                className="group rounded-lg border border-edge px-4 py-3 transition-colors hover:border-teal"
+              >
+                <span className="t-eyebrow block text-muted">Previous</span>
+                <span className="mt-1 block text-link">{prev.title}</span>
               </Link>
             )}
             {next && (
-              <Link href={`/docs/${next.slug}/`} className="ml-auto text-link hover:underline">
-                {next.title} →
+              <Link
+                href={`/docs/${next.slug}/`}
+                className="group rounded-lg border border-edge px-4 py-3 text-right transition-colors hover:border-teal sm:ml-auto"
+              >
+                <span className="t-eyebrow block text-muted">Next</span>
+                <span className="mt-1 block text-link">{next.title}</span>
               </Link>
             )}
           </nav>
         </main>
 
-        {/* On this page. Omitted when a doc has too few headings to be worth a rail. */}
-        {headings.length > 2 && (
-          <nav className="hidden text-sm xl:block">
-            <div className="sticky top-20">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-teal">On this page</p>
-              <ul className="mt-2 space-y-1.5">
-                {headings.map((h, i) => (
-                  <li key={`${h.id}-${i}`} className={h.level === 3 ? "pl-3" : undefined}>
-                    <a href={`#${h.id}`} className="text-muted transition-colors hover:text-text">
-                      {h.text}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </nav>
-        )}
+        {/* Omitted when a doc has too few headings to be worth a rail. */}
+        {headings.length > 2 && <Toc headings={headings} />}
       </div>
       <Footer />
     </>

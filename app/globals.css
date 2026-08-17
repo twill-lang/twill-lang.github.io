@@ -19,6 +19,10 @@
   --link: #2f7a66;
   --code-ground: #12332c;
   --code-text: #d2f0e4;
+  --code-edge: #1e4a40;
+  --shell: #0e2a24;
+
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,6 +35,10 @@
     --link: #7fe3c4;
     --code-ground: #0a1f1a;
     --code-text: #d2f0e4;
+    --code-edge: #1c4239;
+    --shell: #10302a;
+
+    color-scheme: dark;
   }
 }
 
@@ -44,6 +52,8 @@
   --color-accent: var(--accent);
   --color-teal: var(--teal);
   --color-pale: var(--pale);
+  --color-code-edge: var(--code-edge);
+  --color-shell: var(--shell);
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
@@ -57,6 +67,72 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--teal) 28%, transparent);
+}
+
+/* One focus treatment for the whole site rather than per-component rings. */
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Display type. Fluid so the same rule holds from 375px to a wide desktop, with
+   the tracking tightening as the size grows: a 64px heading at default tracking
+   reads loose, and the same value at 36px reads cramped. */
+.t-display {
+  font-size: clamp(2.125rem, 1.15rem + 4.2vw, 4rem);
+  line-height: 1.03;
+  letter-spacing: -0.038em;
+  font-weight: 640;
+}
+
+.t-headline {
+  font-size: clamp(1.6rem, 1.15rem + 1.9vw, 2.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.032em;
+  font-weight: 620;
+}
+
+.t-title {
+  font-size: clamp(1.35rem, 1.1rem + 1vw, 1.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  font-weight: 620;
+}
+
+.t-lead {
+  font-size: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+  line-height: 1.62;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.t-eyebrow {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* A hairline grid: one border on the container, one on each cell, collapsed by
+   negative margins so shared edges do not double up. Cheaper visually than a
+   field of separate rounded cards. */
+.hairline-grid {
+  border: 1px solid var(--edge);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+.hairline-grid > * {
+  border-top: 1px solid var(--edge);
+  border-left: 1px solid var(--edge);
+  margin-top: -1px;
+  margin-left: -1px;
 }
 
 /* Syntax colours for the .tw blocks. Kept to four roles: anything finer starts
@@ -73,18 +149,20 @@ body {
 .prose-twill { line-height: 1.7; }
 .prose-twill > * + * { margin-top: 1.1rem; }
 .prose-twill h1, .prose-twill h2, .prose-twill h3, .prose-twill h4 {
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  scroll-margin-top: 5rem;
+  font-weight: 620;
+  letter-spacing: -0.022em;
+  color: var(--text);
+  scroll-margin-top: 6rem;
 }
-.prose-twill h1 { font-size: 1.75rem; margin-top: 2.5rem; }
+.prose-twill h1 { font-size: 1.9rem; line-height: 1.15; margin-top: 2.75rem; }
 .prose-twill h2 {
-  font-size: 1.3rem;
-  margin-top: 2.75rem;
-  padding-top: 1.25rem;
+  font-size: 1.45rem;
+  line-height: 1.2;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
   border-top: 1px solid var(--edge);
 }
-.prose-twill h3 { font-size: 1.05rem; margin-top: 2rem; }
+.prose-twill h3 { font-size: 1.1rem; margin-top: 2.25rem; }
 .prose-twill p, .prose-twill li { color: var(--muted); }
 .prose-twill strong { color: var(--text); font-weight: 600; }
 .prose-twill a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
@@ -103,12 +181,14 @@ body {
 .prose-twill pre {
   background: var(--code-ground);
   color: var(--code-text);
-  border: 1px solid var(--edge);
-  border-radius: 0.5rem;
-  padding: 1rem 1.15rem;
+  border: 1px solid var(--code-edge);
+  border-radius: 0.75rem;
+  padding: 1.15rem 1.25rem;
   overflow-x: auto;
+  max-width: 100%;
   font-size: 0.8125rem;
-  line-height: 1.65;
+  line-height: 1.7;
+  tab-size: 2;
 }
 /* Inside a block the tint and padding are the wrapper's job, not the code's. */
 .prose-twill pre code {
@@ -129,6 +209,7 @@ body {
   font-size: 0.875rem;
   display: block;
   overflow-x: auto;
+  max-width: 100%;
 }
 .prose-twill th, .prose-twill td {
   border: 1px solid var(--edge);
@@ -143,4 +224,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
+  /* Covers the window between first paint and hydration, when the prerendered
+     entrance state is still on the element. */
+  .reveal { opacity: 1 !important; transform: none !important; }
 }
