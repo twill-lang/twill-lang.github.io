@@ -18,7 +18,7 @@ export default function DocsIndex() {
       <Nav />
       <main className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24">
         <Reveal>
-          <p className="t-eyebrow text-teal">Documentation</p>
+          <p className="t-eyebrow text-brand">Documentation</p>
           <h1 className="t-headline mt-4 max-w-[20ch]">Guides, reference and evidence</h1>
           <p className="t-lead mt-5 max-w-[58ch] text-[0.9375rem]">
             Every page here is the markdown from{" "}
@@ -52,7 +52,7 @@ export default function DocsIndex() {
                           {d.title}
                           <ArrowRight
                             size={15}
-                            className="text-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-teal"
+                            className="text-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand"
                           />
                         </span>
                         <span className="mt-1.5 text-sm leading-relaxed text-muted">{d.blurb}</span>

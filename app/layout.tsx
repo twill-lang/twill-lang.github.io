@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { themeScript } from "@/components/theme-toggle";
 
 // Vendored for the same reason the sibling site vendors them: next/font/google
 // fetches at build time, which turns a network blip on the runner into a failed
@@ -69,15 +70,20 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6fbf8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0d2621" },
+    { media: "(prefers-color-scheme: light)", color: "#f5faf8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b211d" },
   ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${mono.variable}`}>
+    /* suppressHydrationWarning: the script below stamps data-theme on this
+       element before React sees it, which is a server/client difference by
+       design and the only one on the page. */
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${mono.variable}`}>
       <head>
+        {/* Ahead of everything, so the temper is settled before first paint. */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         {/* The entrance state is inline on the prerendered markup, so without JS
             it would never be animated away. */}
         <noscript>

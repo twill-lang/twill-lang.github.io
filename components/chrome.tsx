@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion, useReducedMotion, useScroll, useSpring } from "motion/react";
 import { useEffect, useState } from "react";
 import { GitHub } from "@/components/icons";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const GH = "https://github.com/twill-lang/twill";
 
@@ -16,7 +17,7 @@ function Progress() {
   if (still) return null;
   return (
     <motion.div
-      className="absolute inset-x-0 bottom-0 h-px origin-left bg-teal"
+      className="absolute inset-x-0 bottom-0 h-px origin-left bg-brand-fill"
       style={{ scaleX: x }}
       aria-hidden
     />
@@ -43,7 +44,7 @@ export function Nav() {
     <header
       className={`sticky top-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-300 ${
         lifted
-          ? "border-b border-edge bg-ground/80 backdrop-blur-xl"
+          ? "border-b border-edge bg-ground/75 shadow-[var(--shadow-1)] backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
       }`}
     >
@@ -76,6 +77,7 @@ export function Nav() {
           <a href={GH} aria-label="twill on GitHub" className={link(false)}>
             <GitHub size={17} />
           </a>
+          <ThemeToggle className="-my-1" />
         </div>
       </nav>
       <Progress />

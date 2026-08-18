@@ -45,7 +45,7 @@ export function Toc({ headings }: { headings: Heading[] }) {
                   h.level === 3 ? "pl-6" : "pl-3"
                 } ${
                   active === h.id
-                    ? "border-teal text-text"
+                    ? "border-brand-fill text-text"
                     : "border-transparent text-muted hover:border-edge hover:text-text"
                 }`}
               >
