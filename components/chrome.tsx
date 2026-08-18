@@ -9,12 +9,26 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const GH = "https://github.com/twill-lang/twill";
 
-/** The reading-progress line under the nav. Absent, not frozen, when motion is off. */
+/**
+ * The reading-progress line under the nav. Absent, not frozen, when motion is off.
+ *
+ * The `mounted` gate is what keeps that from being a hydration error. The
+ * server cannot know the reader's motion preference, so it always renders the
+ * line; a client that reads `reduce` on its very first render and returned null
+ * there would be handing React a tree that does not match the HTML, and React
+ * throws and regenerates the whole subtree. Rendering it on the first client
+ * pass regardless, then dropping it in an effect, agrees with the server and
+ * still leaves nothing moving for a reader who asked for that.
+ */
 function Progress() {
   const still = useReducedMotion();
+  const [mounted, setMounted] = useState(false);
   const { scrollYProgress } = useScroll();
   const x = useSpring(scrollYProgress, { stiffness: 220, damping: 34, restDelta: 0.001 });
-  if (still) return null;
+
+  useEffect(() => setMounted(true), []);
+
+  if (mounted && still) return null;
   return (
     <motion.div
       className="absolute inset-x-0 bottom-0 h-px origin-left bg-brand-fill"
