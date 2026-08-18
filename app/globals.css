@@ -1,9 +1,24 @@
 @import "tailwindcss";
 
-/* The palette is docs/brand.md in the twill repo, unchanged. Light temper puts
-   ink on near-white with a mint cast; dark temper is the `deep` ground the mark
-   was drawn against. No toggle: the OS setting is the whole of it. */
+/* The palette is docs/brand.md in the twill repo. Light temper puts ink on
+   near-white with a mint cast; dark temper is the `deep` ground the mark was
+   drawn against.
+ *
+ * Three states, not two. A stored choice stamps data-theme on <html> and wins;
+ * with nothing stored the attribute is absent and prefers-color-scheme decides,
+ * so the OS setting is still the default. Every colour is defined on bare
+ * :root, and the two blocks below redefine only what changes -- a colour whose
+ * ONLY definition lived in a media query would be missing for a reader whose OS
+ * says light and whose toggle says dark.
+ *
+ * Two brand slots rather than one. --brand-fill is the saturated mint the
+ * buttons and the mark are drawn in; --brand-ink is the same brand darkened
+ * until it is legible AS TEXT on the light ground. The old stylesheet used one
+ * value for both, so inline code and the ecosystem names rendered #4fb79b on
+ * #f6fbf8: about 2.4:1, under half of what small text needs. That is the single
+ * biggest thing that was wrong with the light temper. */
 :root {
+  /* Brand constants, the same in both tempers. */
   --pale: #d2f0e4;
   --mint: #a8dccb;
   --accent: #7fe3c4;
@@ -11,44 +26,142 @@
   --deep: #12332c;
   --ink: #0b1512;
 
-  --ground: #f6fbf8;
+  /* Light temper. */
+  --ground: #f5faf8;
+  --ground-2: #eaf4ef;
   --raised: #ffffff;
-  --edge: #dce9e3;
-  --text: var(--ink);
-  --muted: #4a635a;
-  --link: #2f7a66;
-  --code-ground: #12332c;
-  --code-text: #d2f0e4;
-  --code-edge: #1e4a40;
-  --shell: #0e2a24;
+  --sunken: #eef6f2;
+  --edge: #d9e8e1;
+  --edge-2: #bed6cb;
+  --text: #08201a;
+  --muted: #445f55;
+  --faint: #6b857b;
+  --link: #17705b;
+
+  --brand-fill: #4fb79b;
+  --brand-ink: #14705a;
+  --on-brand: #06201a;
+
+  /* Source listings are paper in the light temper. A dark slab of code on a
+     near-white page is the heaviest object on it, and there are six of them. */
+  --code-ground: #f2f8f5;
+  --code-text: #0c2b23;
+  --code-edge: #d3e5dd;
+  --shell: #e7f1ec;
+
+  --tok-kw: #05664f;
+  --tok-fn: #14596f;
+  --tok-num: #1d4ed8;
+  --tok-str: #8a4a06;
+  --tok-com: #5e7a70;
+
+  --shadow-1: 0 1px 2px rgb(8 32 26 / 0.05), 0 2px 8px rgb(8 32 26 / 0.04);
+  --shadow-2: 0 2px 4px rgb(8 32 26 / 0.06), 0 12px 32px rgb(8 32 26 / 0.08);
+  --glow: transparent;
 
   color-scheme: light;
 }
 
+/* Dark, for a reader who has expressed no preference to this site. Guarded so
+   an explicit light choice is not overridden by the OS. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --ground: #0d2621;
-    --raised: #12332c;
-    --edge: #1e4a40;
-    --text: #dcefe7;
-    --muted: #8fb3a7;
+  :root:not([data-theme="light"]) {
+    --ground: #0b211d;
+    --ground-2: #0e2a24;
+    --raised: #102e28;
+    --sunken: #091b18;
+    --edge: #1d443c;
+    --edge-2: #2a5d52;
+    --text: #e4f3ed;
+    --muted: #9dbcb1;
+    --faint: #7b9c91;
     --link: #7fe3c4;
-    --code-ground: #0a1f1a;
+
+    --brand-fill: #7fe3c4;
+    --brand-ink: #7fe3c4;
+    --on-brand: #04211b;
+
+    --code-ground: #071a16;
     --code-text: #d2f0e4;
-    --code-edge: #1c4239;
-    --shell: #10302a;
+    --code-edge: #1a4038;
+    --shell: #0c2620;
+
+    --tok-kw: #7fe3c4;
+    --tok-fn: #a8dccb;
+    --tok-num: #9fd8ff;
+    --tok-str: #ffd9a8;
+    --tok-com: #6f9488;
+
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 8px rgb(0 0 0 / 0.24);
+    --shadow-2: 0 2px 4px rgb(0 0 0 / 0.34), 0 14px 36px rgb(0 0 0 / 0.4);
+    --glow: color-mix(in srgb, var(--accent) 13%, transparent);
 
     color-scheme: dark;
   }
 }
 
+/* The same dark temper, chosen explicitly. Repeated rather than shared with the
+   media query above: a selector list containing an unsupported selector is
+   dropped whole by the parser, and these two cannot be written as one anyway. */
+:root[data-theme="dark"] {
+  --ground: #0b211d;
+  --ground-2: #0e2a24;
+  --raised: #102e28;
+  --sunken: #091b18;
+  --edge: #1d443c;
+  --edge-2: #2a5d52;
+  --text: #e4f3ed;
+  --muted: #9dbcb1;
+  --faint: #7b9c91;
+  --link: #7fe3c4;
+
+  --brand-fill: #7fe3c4;
+  --brand-ink: #7fe3c4;
+  --on-brand: #04211b;
+
+  --code-ground: #071a16;
+  --code-text: #d2f0e4;
+  --code-edge: #1a4038;
+  --shell: #0c2620;
+
+  --tok-kw: #7fe3c4;
+  --tok-fn: #a8dccb;
+  --tok-num: #9fd8ff;
+  --tok-str: #ffd9a8;
+  --tok-com: #6f9488;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 8px rgb(0 0 0 / 0.24);
+  --shadow-2: 0 2px 4px rgb(0 0 0 / 0.34), 0 14px 36px rgb(0 0 0 / 0.4);
+  --glow: color-mix(in srgb, var(--accent) 13%, transparent);
+
+  color-scheme: dark;
+}
+
+/* A terminal is a terminal in both tempers. Now that source listings are paper
+   under light, this is also what keeps `twill check` output legible AS output:
+   the two panels sat side by side in the same colours before, and the pairing
+   is the whole point of those figures. */
+:root {
+  --term-ground: #071a16;
+  --term-text: #d2f0e4;
+  --term-edge: #1a4038;
+  --term-shell: #0c2620;
+}
+
 @theme inline {
   --color-ground: var(--ground);
+  --color-ground-2: var(--ground-2);
   --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
   --color-edge: var(--edge);
+  --color-edge-2: var(--edge-2);
   --color-text: var(--text);
   --color-muted: var(--muted);
+  --color-faint: var(--faint);
   --color-link: var(--link);
+  --color-brand: var(--brand-ink);
+  --color-brand-fill: var(--brand-fill);
+  --color-on-brand: var(--on-brand);
   --color-accent: var(--accent);
   --color-teal: var(--teal);
   --color-pale: var(--pale);
@@ -62,21 +175,36 @@ html {
   scroll-behavior: smooth;
 }
 
+/* The ground is not flat. Two very wide, very faint mint washes sit behind the
+   top of the page, so the hero has some depth without anything on it moving.
+   Fixed attachment, so it does not slide against the content as you scroll. */
 body {
-  background: var(--ground);
+  background:
+    radial-gradient(70rem 40rem at 12% -8%, var(--glow), transparent 60%),
+    radial-gradient(52rem 32rem at 88% 2%, color-mix(in srgb, var(--teal) 7%, transparent), transparent 62%),
+    var(--ground);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
+/* The toggle changes the ground under everything at once. Without this the
+   swap is a hard cut; with it the page turns over. Deliberately not on
+   `*`, which would drag every hover transition on the page to 260ms. */
+body,
+.themed {
+  transition: background-color 0.26s ease, color 0.26s ease, border-color 0.26s ease;
+}
+
 ::selection {
-  background: color-mix(in srgb, var(--teal) 28%, transparent);
+  background: color-mix(in srgb, var(--teal) 30%, transparent);
 }
 
 /* One focus treatment for the whole site rather than per-component rings. */
 :focus-visible {
-  outline: 2px solid var(--teal);
+  outline: 2px solid var(--brand-ink);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -127,6 +255,8 @@ body {
   border: 1px solid var(--edge);
   border-radius: 0.75rem;
   overflow: hidden;
+  background: var(--raised);
+  box-shadow: var(--shadow-1);
 }
 .hairline-grid > * {
   border-top: 1px solid var(--edge);
@@ -135,13 +265,51 @@ body {
   margin-left: -1px;
 }
 
+/* A pill, for the hero's status chips and the version tag. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--edge);
+  background: color-mix(in srgb, var(--raised) 70%, transparent);
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  color: var(--muted);
+}
+.chip-brand {
+  border-color: color-mix(in srgb, var(--brand-fill) 45%, transparent);
+  background: color-mix(in srgb, var(--brand-fill) 12%, transparent);
+  color: var(--brand-ink);
+}
+a.chip:hover {
+  border-color: var(--edge-2);
+  color: var(--text);
+}
+a.chip-brand:hover {
+  border-color: var(--brand-fill);
+  color: var(--brand-ink);
+}
+
 /* Syntax colours for the .tw blocks. Kept to four roles: anything finer starts
-   competing with the prose for attention. */
-.tok-kw { color: var(--accent); }
-.tok-fn { color: var(--mint); }
-.tok-num { color: #9fd8ff; }
-.tok-str { color: #ffd9a8; }
-.tok-com { color: #6f9488; font-style: italic; }
+   competing with the prose for attention. The values now come from the temper,
+   because a palette picked to sit on #071a16 is unreadable on paper -- the
+   comment grey and the amber string were the worst of it. */
+.tok-kw { color: var(--tok-kw); font-weight: 550; }
+.tok-fn { color: var(--tok-fn); }
+.tok-num { color: var(--tok-num); }
+.tok-str { color: var(--tok-str); }
+.tok-com { color: var(--tok-com); font-style: italic; }
+
+/* Inside a terminal panel the ground is fixed dark in both tempers, so the
+   tokens have to be too. */
+.term-panel {
+  --code-text: var(--term-text);
+  --tok-kw: var(--accent);
+  --tok-fn: var(--mint);
+  --tok-num: #9fd8ff;
+  --tok-str: #ffd9a8;
+  --tok-com: #6f9488;
+}
 
 /* Rendered markdown from the twill repo. Written out rather than pulled in with
    a typography plugin because the docs use a narrow set of elements and the
@@ -173,8 +341,8 @@ body {
 .prose-twill code {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.875em;
-  color: var(--teal);
-  background: color-mix(in srgb, var(--teal) 10%, transparent);
+  color: var(--brand-ink);
+  background: color-mix(in srgb, var(--teal) 12%, transparent);
   padding: 0.1em 0.35em;
   border-radius: 4px;
 }
@@ -189,6 +357,7 @@ body {
   font-size: 0.8125rem;
   line-height: 1.7;
   tab-size: 2;
+  box-shadow: var(--shadow-1);
 }
 /* Inside a block the tint and padding are the wrapper's job, not the code's. */
 .prose-twill pre code {
@@ -198,7 +367,7 @@ body {
   font-size: inherit;
 }
 .prose-twill blockquote {
-  border-left: 2px solid var(--teal);
+  border-left: 2px solid var(--brand-fill);
   padding-left: 1rem;
   color: var(--muted);
 }
@@ -217,7 +386,7 @@ body {
   text-align: left;
   vertical-align: top;
 }
-.prose-twill th { background: var(--raised); font-weight: 600; }
+.prose-twill th { background: var(--sunken); font-weight: 600; color: var(--text); }
 .prose-twill td { color: var(--muted); }
 .prose-twill img { max-width: 100%; height: auto; }
 

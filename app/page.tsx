@@ -53,6 +53,56 @@ let price: USD/share = 150.0
 let value = notional(price, 200.0)   # USD
 `;
 
+const EXACT_I64 = `
+mode systems
+
+let big: I64 = 9007199254740993   # exact; an f64 rounds this to ...992
+let wrapped = MAX_I64 + 1         # wraps, like every other 64-bit integer
+let bits = shl(1, 63)             # representable at all now
+
+fn parse(s: Str) -> I64 = i64_of_str(s)?   # ? is checked, and what it yields is typed
+`;
+
+const MATCH_OUT = `
+$ twill check model.tw
+model.tw:14: shape error: match on Verdict is not exhaustive: missing Noisy, New
+ 14 |   match v {
+model.tw:22: shape error: arm 3 repeats case Clean
+model.tw:31: shape error: let x: I64 = "hello": declared I64, found Str
+`;
+
+/* The four things 1.6 closed. Phrased as the changelog phrases them -- what was
+   true before and is not now -- because "adds exhaustiveness checking" does not
+   tell a reader that their match was silently falling through. */
+const COMPLETENESS = [
+  {
+    title: "An I64 was a float",
+    body: "It was an f64 holding an integer, so it held 53 bits: 9007199254740993 printed as ...992, MAX_I64 + 1 did not wrap, shl(1, 63) had no representation, and every hash mixer written in twill was quietly wrong. An exact Int now arises wherever the program said I64 and never from a bare small literal, which is what leaves numeric mode alone. A property test runs 300 random pairs through every operator against Go's int64.",
+  },
+  {
+    title: "A match could silently not cover its cases",
+    body: "The checker knows each enum's cases and names the ones with no arm, along with an arm that repeats a case, an arm after _, a redundant _, and arms naming cases of two different enums. This is the reason to have an enum: adding a case now makes every match that was not updated say so, at check time.",
+  },
+  {
+    title: "A systems-mode annotation was a comment",
+    body: "let x: I64 = \"hello\" used to pass. The declared types are checked now at a binding, an argument, a return, a struct field at construction and assignment, and an enum payload. The policy is the shape checker's: report only what is certain, and judge nothing where a type is unresolved.",
+  },
+  {
+    title: "Two autodiff mistakes answered with a zero",
+    body: "grad(grad(f)) was refused by inspecting the argument, so the same mistake with a function between the two gradients passed and returned zeros. And tensor(list(...)) copied numbers into a fresh buffer with no gradient rule, so jacobian of a function built that way returned a matrix of zeros. Both are errors or correct gradients now; hessian and jacobian nest legitimately and are unaffected.",
+  },
+];
+
+/* The tooling half. Shorter entries, so a compact list rather than cards. */
+const TOOLING = [
+  ["std/gradcheck", "A gradient checker. There is nothing about a wrong gradient that looks wrong: the model does not crash, it trains to a worse loss, and the search starts at the learning rate. Compares against a central difference quotient, deliberately not built out of grad."],
+  ["twill doctor", "Answers the question a bug report starts with, and finds what is wrong quietly: a stale binary earlier on PATH, a TWILL_STD pointing at last month's checkout, a standard library that will not load."],
+  [":type and :shape", "Answer from the checker in the REPL without running anything, which for a tensor-first language is the most useful question there is. :shape randn(4096, 4096) @ w costs nothing here and a gigabyte there."],
+  ["The filesystem, finished", "path_exists, mkdir_all, remove_all, rename, mtime, temp_dir, cwd and the seven path operations. A program could read a file and write one, and could not make a directory to write into or clean up after itself."],
+  ["mono_ns()", "A clock that only goes forward. The wall clock steps when the system time is corrected, so a duration measured across one is wrong by the correction -- for a benchmark, the difference between a number and a fiction."],
+  ["twill test --filter", "Runs the suites whose path contains a substring, alongside twill --version --verbose printing the build."],
+];
+
 const PILLARS = [
   {
     title: "Tensors are the primitive",
@@ -83,8 +133,8 @@ const ECOSYSTEM = [
 
 const NOT_DONE = [
   "It is interpreted. Tensor ops loop in Go, and there is no vectorized or GPU backend.",
-  "Autodiff is reverse-mode and first-order. grad(grad(f)) is refused rather than silently answered with zero.",
-  "The shape checker is best-effort, not a full type system.",
+  "Autodiff is reverse-mode and first-order. A gradient inside a gradient is refused wherever it is written, rather than answered with zeros; hessian and jacobian nest legitimately.",
+  "The shape checker is best-effort, not a full type system. The systems-mode types are checked as of 1.6, but only where a mismatch is certain: an unresolved type is left alone rather than treated as an error.",
   "The self-hosted compiler runs on the Go bootstrap, not yet as its own Go-free binary.",
 ];
 
@@ -98,12 +148,17 @@ export default function Home() {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/twill-mark.svg" alt="twill" width={44} height={44} />
-              <span className="t-eyebrow rounded-full border border-edge px-2.5 py-1 text-muted">
-                MIT licensed
-              </span>
-              <span className="t-eyebrow rounded-full border border-edge px-2.5 py-1 text-muted">
-                Early prototype
-              </span>
+              {/* rc1, said as rc1. 1.6 is a release candidate and 1.5.1.1 is
+                  what `latest` still resolves to; a chip reading "v1.6" here
+                  would be the one overstatement this page cannot afford. */}
+              <a
+                href={`${GH}/releases/tag/v1.6.0-rc1`}
+                className="chip chip-brand t-eyebrow transition-colors"
+              >
+                v1.6.0-rc1
+              </a>
+              <span className="chip t-eyebrow">MIT licensed</span>
+              <span className="chip t-eyebrow">Early prototype</span>
             </div>
           </Enter>
           <Enter delay={0.08}>
@@ -114,7 +169,7 @@ export default function Home() {
           <Enter delay={0.14}>
             <p className="t-lead mt-6 max-w-[52ch]">
               twill is a small language where{" "}
-              <code className="font-mono text-teal">grad</code> is built in and a shape
+              <code className="font-mono text-brand">grad</code> is built in and a shape
               mistake is an error you see before the program runs.
             </p>
           </Enter>
@@ -130,14 +185,14 @@ export default function Home() {
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
                 href="/docs/tutorial/"
-                className="group inline-flex items-center gap-2 rounded-lg bg-teal px-5 py-2.5 text-sm font-medium text-[#06201a] transition-transform hover:scale-[1.02] active:scale-[0.99]"
+                className="group inline-flex items-center gap-2 rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-medium text-on-brand transition-transform hover:scale-[1.02] active:scale-[0.99]"
               >
                 Start the tutorial
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
               <a
                 href={`${GH}/releases`}
-                className="inline-flex items-center gap-2 rounded-lg border border-edge px-5 py-2.5 text-sm font-medium transition-colors hover:border-teal"
+                className="inline-flex items-center gap-2 rounded-lg border border-edge px-5 py-2.5 text-sm font-medium transition-colors hover:border-brand-fill"
               >
                 <Download size={16} />
                 Download a binary
@@ -146,7 +201,7 @@ export default function Home() {
           </Enter>
           <Enter delay={0.34}>
             <div className="mt-5 max-w-full overflow-x-auto rounded-lg border border-edge px-4 py-3 font-mono text-[13px] text-muted">
-              <span className="select-none text-teal">$ </span>
+              <span className="select-none text-brand">$ </span>
               <span className="whitespace-pre">go install github.com/twill-lang/twill/cmd/twill@latest</span>
             </div>
           </Enter>
@@ -177,7 +232,7 @@ export default function Home() {
           <p className="mt-6 max-w-[70ch] text-sm leading-relaxed text-muted">
             A dimension can be a literal, or a name. A name used more than once must be the
             same size, which is what lets the checker verify the return type of{" "}
-            <code className="font-mono text-teal">fn mm(A: [n, k], B: [k, m]) -&gt; [n, m]</code>.
+            <code className="font-mono text-brand">fn mm(A: [n, k], B: [k, m]) -&gt; [n, m]</code>.
             The checker only flags a mismatch when it is certain: code whose shapes depend
             on runtime values is left alone rather than guessed at, so a clean run means
             what it says.
@@ -188,7 +243,7 @@ export default function Home() {
           <Stagger className="hairline-grid grid sm:grid-cols-3">
             {PILLARS.map((p, i) => (
               <StaggerItem key={p.title} className="bg-raised p-6">
-                <span className="t-eyebrow text-teal">{String(i + 1).padStart(2, "0")}</span>
+                <span className="t-eyebrow text-brand">{String(i + 1).padStart(2, "0")}</span>
                 <h3 className="mt-3 text-base font-semibold tracking-tight">{p.title}</h3>
                 <p className="mt-2.5 text-sm leading-relaxed text-muted">{p.body}</p>
               </StaggerItem>
@@ -208,17 +263,78 @@ export default function Home() {
           </div>
         </Section>
 
-        <Section n="05" eyebrow="Self-hosting" title="twill is being written in twill">
+        <Section
+          n="05"
+          eyebrow="New in 1.6"
+          title="The completeness release: four things were true of twill and are not now"
+          lead="1.5 made the ecosystem run. This one makes the language stop having pieces missing from the middle of it. Numeric mode is untouched -- a program with no mode systems line and no annotations behaves exactly as it did, which is what the mode gate is for."
+        >
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+            <Code label="exact.tw">{EXACT_I64}</Code>
+            <Term label="twill check">{MATCH_OUT}</Term>
+          </div>
+
+          <Stagger className="hairline-grid mt-8 grid sm:grid-cols-2">
+            {COMPLETENESS.map((c, i) => (
+              <StaggerItem key={c.title} className="bg-raised p-6">
+                <span className="t-eyebrow text-brand">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="mt-3 text-base font-semibold tracking-tight">{c.title}</h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-muted">{c.body}</p>
+              </StaggerItem>
+            ))}
+          </Stagger>
+
           <Reveal>
-            <div className="rounded-xl border border-teal/35 bg-raised p-6 sm:p-8">
+            <div className="mt-8">
+              <p className="t-eyebrow text-faint">And the tooling around it</p>
+              <dl className="mt-4 grid gap-x-10 gap-y-4 sm:grid-cols-2">
+                {TOOLING.map(([name, blurb]) => (
+                  <div key={name} className="border-t border-edge pt-3">
+                    <dt className="font-mono text-sm font-semibold text-brand">{name}</dt>
+                    <dd className="mt-1 text-sm leading-relaxed text-muted">{blurb}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </Reveal>
+
+          <Reveal>
+            <p className="mt-8 max-w-[74ch] text-sm leading-relaxed text-muted">
+              Across the nine ecosystem repositories the 60 test suites pass unchanged, and{" "}
+              <code className="font-mono text-brand">twill check</code> reports 10 unresolved
+              names, all of them primitives that genuinely do not exist yet, down from 31.
+              Systems-mode code can newly fail to check, which is the point of the release.
+              Three run-time behaviours change for a program relying on them: an{" "}
+              <code className="font-mono text-brand">I64</code> division or modulo by zero is
+              an error rather than an infinity or a NaN,{" "}
+              <code className="font-mono text-brand">%</code> on two{" "}
+              <code className="font-mono text-brand">I64</code>s takes the sign of the
+              dividend, and a failing <code className="font-mono text-brand">?</code> at the
+              top level stops with a message rather than exiting 0.
+            </p>
+          </Reveal>
+        </Section>
+
+        <Section n="06" eyebrow="Self-hosting" title="twill is being written in twill">
+          <Reveal>
+            <div className="rounded-xl border border-brand-fill/35 bg-raised p-6 sm:p-8">
               <p className="max-w-[72ch] text-sm leading-relaxed text-muted">
                 As of v1.5.0 this runs. The lexer, parser, checker, evaluator, tensor
                 kernels, formatter and CLI are written in the language itself, and the whole
                 tree executes on the Go bootstrap and reproduces the reference across every
-                stage: <code className="font-mono text-teal">twill check</code> matched the
+                stage: <code className="font-mono text-brand">twill check</code> matched the
                 Go command byte for byte on every corpus file, and{" "}
-                <code className="font-mono text-teal">twill fmt</code> on every one it
+                <code className="font-mono text-brand">twill fmt</code> on every one it
                 formats.
+              </p>
+              <p className="mt-4 max-w-[72ch] text-sm leading-relaxed text-muted">
+                1.6 held the formatter to that claim rather than asserting it: a corpus
+                test over 461 files now checks that <code className="font-mono text-brand">twill fmt</code>{" "}
+                parses, is idempotent, and keeps every comment and every statement. It was
+                added because the printer had no case for a{" "}
+                <code className="font-mono text-brand">unit</code> declaration and{" "}
+                <code className="font-mono text-brand">--write</code> was deleting them from
+                the file, in the Go printer and the self-hosted one alike.
               </p>
               <p className="mt-4 max-w-[72ch] text-sm leading-relaxed text-muted">
                 Designing the subset a compiler needs was the point of doing it. Writing the
@@ -239,7 +355,7 @@ export default function Home() {
         </Section>
 
         <Section
-          n="06"
+          n="07"
           eyebrow="The ecosystem"
           title="Ten repositories, one language"
           lead="Everything downstream of the compiler is written in twill itself, which is the same experiment run again: a real program against the subset, with its own list of what is missing."
@@ -252,10 +368,10 @@ export default function Home() {
                   className="group flex h-full flex-col bg-raised p-5 transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_7%,var(--raised))]"
                 >
                   <span className="flex items-center justify-between gap-3">
-                    <span className="font-mono text-sm font-semibold text-teal">{r.name}</span>
+                    <span className="font-mono text-sm font-semibold text-brand">{r.name}</span>
                     <ArrowUpRight
                       size={15}
-                      className="text-muted transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-teal"
+                      className="text-muted transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand"
                     />
                   </span>
                   <span className="mt-1.5 text-sm leading-relaxed text-muted">{r.blurb}</span>
@@ -266,7 +382,7 @@ export default function Home() {
         </Section>
 
         <Section
-          n="07"
+          n="08"
           eyebrow="What is not done yet"
           title="This is a prototype, and some of it is deliberately left for later"
         >
@@ -279,11 +395,11 @@ export default function Home() {
           </Stagger>
         </Section>
 
-        <Section n="08" eyebrow="Read on" title="Documentation">
+        <Section n="09" eyebrow="Read on" title="Documentation">
           <Reveal>
             <Link
               href="/docs/"
-              className="group inline-flex items-center gap-2 rounded-lg bg-teal px-5 py-2.5 text-sm font-medium text-[#06201a] transition-transform hover:scale-[1.02]"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-medium text-on-brand transition-transform hover:scale-[1.02]"
             >
               <Book size={16} />
               Browse the docs
@@ -320,7 +436,7 @@ function Section({
       <Reveal>
         <div className="grid gap-x-10 gap-y-4 lg:grid-cols-[7rem_minmax(0,1fr)]">
           <p className="t-eyebrow flex items-baseline gap-2 pt-1.5 text-muted lg:flex-col lg:gap-1.5">
-            <span className="text-teal">{n}</span>
+            <span className="text-brand">{n}</span>
             <span>{eyebrow}</span>
           </p>
           <div>

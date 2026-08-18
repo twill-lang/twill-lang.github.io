@@ -53,7 +53,7 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
                         href={`/docs/${d.slug}/`}
                         className={`-ml-px block border-l py-1 pl-3 text-[13px] transition-colors ${
                           d.slug === doc.slug
-                            ? "border-teal text-text"
+                            ? "border-brand-fill text-text"
                             : "border-transparent text-muted hover:border-edge hover:text-text"
                         }`}
                       >
@@ -69,7 +69,7 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
 
         <main className="min-w-0">
           <Reveal y={10}>
-            <p className="t-eyebrow text-teal">{doc.section}</p>
+            <p className="t-eyebrow text-brand">{doc.section}</p>
             <h1 className="t-title mt-3">{doc.title}</h1>
             <p className="mt-2 text-sm leading-relaxed text-muted">{doc.blurb}</p>
             <a
@@ -91,7 +91,7 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
             {prev && (
               <Link
                 href={`/docs/${prev.slug}/`}
-                className="group rounded-lg border border-edge px-4 py-3 transition-colors hover:border-teal"
+                className="group rounded-lg border border-edge px-4 py-3 transition-colors hover:border-brand-fill"
               >
                 <span className="t-eyebrow block text-muted">Previous</span>
                 <span className="mt-1 block text-link">{prev.title}</span>
@@ -100,7 +100,7 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
             {next && (
               <Link
                 href={`/docs/${next.slug}/`}
-                className="group rounded-lg border border-edge px-4 py-3 text-right transition-colors hover:border-teal sm:ml-auto"
+                className="group rounded-lg border border-edge px-4 py-3 text-right transition-colors hover:border-brand-fill sm:ml-auto"
               >
                 <span className="t-eyebrow block text-muted">Next</span>
                 <span className="mt-1 block text-link">{next.title}</span>
