@@ -81,7 +81,7 @@ const COMPLETENESS = [
   },
   {
     title: "A match could silently not cover its cases",
-    body: "The checker knows each enum's cases and names the ones with no arm, along with an arm that repeats a case, an arm after _, a redundant _, and arms naming cases of two different enums. This is the reason to have an enum: adding a case now makes every match that was not updated say so, at check time.",
+    body: "The checker knows each enum's cases and names the ones with no arm, along with an arm that repeats a case, an arm after _, a redundant _, and arms naming cases of two different enums. This is the reason to have an enum: adding a case now makes every match that was not updated say so, at check time. Moving the nine repositories onto rc1 then found that the checker reads one file, so it knew nothing of an imported enum's other cases -- and matching on an imported enum is how the ecosystem is written, which meant the check did nothing in exactly the place it was most wanted. An import is now followed for its enum declarations and nothing else.",
   },
   {
     title: "A systems-mode annotation was a comment",
@@ -95,10 +95,11 @@ const COMPLETENESS = [
 
 /* The tooling half. Shorter entries, so a compact list rather than cards. */
 const TOOLING = [
+  ["twill lsp", "A language server: diagnostics republished as you type, formatting, and hover reporting the inferred type and shape. Hover is the one worth having -- in a tensor-first language the question you actually have is what shape something is, and it is answered from the checker without running anything. No completion, deliberately, until the semantic information is reliable enough to drive one."],
   ["std/gradcheck", "A gradient checker. There is nothing about a wrong gradient that looks wrong: the model does not crash, it trains to a worse loss, and the search starts at the learning rate. Compares against a central difference quotient, deliberately not built out of grad."],
   ["twill doctor", "Answers the question a bug report starts with, and finds what is wrong quietly: a stale binary earlier on PATH, a TWILL_STD pointing at last month's checkout, a standard library that will not load."],
   [":type and :shape", "Answer from the checker in the REPL without running anything, which for a tensor-first language is the most useful question there is. :shape randn(4096, 4096) @ w costs nothing here and a gigabyte there."],
-  ["The filesystem, finished", "path_exists, mkdir_all, remove_all, rename, mtime, temp_dir, cwd and the seven path operations. A program could read a file and write one, and could not make a directory to write into or clean up after itself."],
+  ["The filesystem, finished", "path_exists, mkdir_all, remove_all, rename, mtime, temp_dir, cwd and the seven path operations. A program could read a file and write one, and could not make a directory to write into or clean up after itself. Plus read_file_at, a ranged read: read_file returns the whole file, so a reader following a growing log read all of it again on every poll, and one processing a file larger than memory could not run at all."],
   ["mono_ns()", "A clock that only goes forward. The wall clock steps when the system time is corrected, so a duration measured across one is wrong by the correction -- for a benchmark, the difference between a number and a fiction."],
   ["twill test --filter", "Runs the suites whose path contains a substring, alongside twill --version --verbose printing the build."],
 ];
@@ -148,14 +149,11 @@ export default function Home() {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/twill-mark.svg" alt="twill" width={44} height={44} />
-              {/* rc1, said as rc1. 1.6 is a release candidate and 1.5.1.1 is
-                  what `latest` still resolves to; a chip reading "v1.6" here
-                  would be the one overstatement this page cannot afford. */}
               <a
-                href={`${GH}/releases/tag/v1.6.0-rc1`}
+                href={`${GH}/releases/tag/v1.6.0`}
                 className="chip chip-brand t-eyebrow transition-colors"
               >
-                v1.6.0-rc1
+                v1.6.0
               </a>
               <span className="chip t-eyebrow">MIT licensed</span>
               <span className="chip t-eyebrow">Early prototype</span>
@@ -267,7 +265,7 @@ export default function Home() {
           n="05"
           eyebrow="New in 1.6"
           title="The completeness release: four things were true of twill and are not now"
-          lead="1.5 made the ecosystem run. This one makes the language stop having pieces missing from the middle of it. Numeric mode is untouched -- a program with no mode systems line and no annotations behaves exactly as it did, which is what the mode gate is for."
+          lead="1.5 made the ecosystem run. This one makes the language stop having pieces missing from the middle of it. Numeric mode is untouched -- a program with no mode systems line and no annotations behaves exactly as it did, which is what the mode gate is for. Shipped as v1.6.0 on 19 August 2026."
         >
           <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
             <Code label="exact.tw">{EXACT_I64}</Code>
@@ -300,7 +298,12 @@ export default function Home() {
 
           <Reveal>
             <p className="mt-8 max-w-[74ch] text-sm leading-relaxed text-muted">
-              Across the nine ecosystem repositories the 60 test suites pass unchanged, and{" "}
+              The release is the two candidates that made it. rc1 was the language work
+              above; rc2 is what nine repositories found when they were moved onto rc1 and
+              made to use it, and none of those findings was reachable from twill&rsquo;s own
+              sources. Between rc2 and the tag the compiler did not change -- what changed
+              is that those nine now run their suites against it in CI rather than on one
+              developer&rsquo;s machine: 60 suites, nine repositories, green. Across them{" "}
               <code className="font-mono text-brand">twill check</code> reports 10 unresolved
               names, all of them primitives that genuinely do not exist yet, down from 31.
               Systems-mode code can newly fail to check, which is the point of the release.
