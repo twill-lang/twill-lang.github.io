@@ -53,43 +53,48 @@ let price: USD/share = 150.0
 let value = notional(price, 200.0)   # USD
 `;
 
-const EXACT_I64 = `
+const PATTERNS_TW = `
 mode systems
 
-let big: I64 = 9007199254740993   # exact; an f64 rounds this to ...992
-let wrapped = MAX_I64 + 1         # wraps, like every other 64-bit integer
-let bits = shl(1, 63)             # representable at all now
+struct Pair[A, B] { left: A, right: B }      # a declaration of your own, generic
 
-fn parse(s: Str) -> I64 = i64_of_str(s)?   # ? is checked, and what it yields is typed
+fn describe(e: Expr) -> Str {
+  match e {
+    Num(v) if v < 0.0 => "a negative constant",   # a guard
+    Num(0.0) => "zero",                           # a literal pattern
+    Neg(Neg(inner)) => describe(inner),           # a nested pattern
+    Mul(p) => "a product",
+    other => "something else",                    # a catch-all with a name
+  }
+}
 `;
 
 const MATCH_OUT = `
-$ twill check model.tw
-model.tw:14: shape error: match on Verdict is not exhaustive: missing Noisy, New
- 14 |   match v {
-model.tw:22: shape error: arm 3 repeats case Clean
-model.tw:31: shape error: let x: I64 = "hello": declared I64, found Str
+$ twill check load.tw
+load.tw:14: shape error: match on Opt is not exhaustive: missing Some(Err)
+ 14 |   match o {
+load.tw:31: shape error: "b" is declared Box[I64] but the value is Box[Str]
 `;
 
-/* The four things 1.6 closed. Phrased as the changelog phrases them -- what was
-   true before and is not now -- because "adds exhaustiveness checking" does not
-   tell a reader that their match was silently falling through. */
+/* The two things 1.7 closed. Both were the top of docs/needs.md's open list,
+   and both landed on the Go bootstrap and in the self-hosted compiler together,
+   which is the check this project exists to be able to make. */
 const COMPLETENESS = [
   {
-    title: "An I64 was a float",
-    body: "It was an f64 holding an integer, so it held 53 bits: 9007199254740993 printed as ...992, MAX_I64 + 1 did not wrap, shl(1, 63) had no representation, and every hash mixer written in twill was quietly wrong. An exact Int now arises wherever the program said I64 and never from a bare small literal, which is what leaves numeric mode alone. A property test runs 300 random pairs through every operator against Go's int64.",
+    title: "A pattern was a case name and one binder",
+    body: "It is a tree now. Ok(Some(v)) takes a value apart in one place instead of a second match inside the arm; 3, \"hi\" and true match by ordinary equality, so a match over numbers needs no enum written around it; and Some(n) if n > 0 says the thing a shape cannot. A lower-case name binds rather than naming a case, so a catch-all can say what it caught -- and since every variant in the language and its libraries is upper-case initial, nothing written before changes meaning.",
   },
   {
-    title: "A match could silently not cover its cases",
-    body: "The checker knows each enum's cases and names the ones with no arm, along with an arm that repeats a case, an arm after _, a redundant _, and arms naming cases of two different enums. This is the reason to have an enum: adding a case now makes every match that was not updated say so, at check time. Moving the nine repositories onto rc1 then found that the checker reads one file, so it knew nothing of an imported enum's other cases -- and matching on an imported enum is how the ecosystem is written, which meant the check did nothing in exactly the place it was most wanted. An import is now followed for its enum declarations and nothing else.",
+    title: "Exhaustiveness got more precise, not just still true",
+    body: "It recurses: Some(Ok(v)), Some(Err(e)) and None cover an Opt[Res[..]], and dropping one names the value that gets through rather than passing. The rule underneath is that an arm counts only when nothing but the value's shape decides whether it runs -- so a guarded arm and a narrower nested one prove nothing, and Some(v) if v > 3 together with None is reported as incomplete. That is stricter than 1.6 was, and correct.",
   },
   {
-    title: "A systems-mode annotation was a comment",
-    body: "let x: I64 = \"hello\" used to pass. The declared types are checked now at a binding, an argument, a return, a struct field at construction and assignment, and an enum payload. The policy is the shape checker's: report only what is certain, and judge nothing where a type is unresolved.",
+    title: "Only four types could be generic",
+    body: "Arr, Dict, Opt and Res were generic and checked; a declaration in a twill program could not be, and [ after the name was a syntax error. struct Box[T], enum Tree[T] and fn first[T](xs: Arr[T]) -> T now parse, check and run. A Box[I64]'s field is an I64 rather than an unknown, substitution goes under the constructors a parameter is written inside, and a Box[Str] is refused where a Box[I64] was declared.",
   },
   {
-    title: "Two autodiff mistakes answered with a zero",
-    body: "grad(grad(f)) was refused by inspecting the argument, so the same mistake with a function between the two gradients passed and returned zeros. And tensor(list(...)) copied numbers into a fresh buffer with no gradient rule, so jacobian of a function built that way returned a matrix of zeros. Both are errors or correct gradients now; hessian and jacobian nest legitimately and are unaffected.",
+    title: "And no monomorphization, which turned out not to be needed",
+    body: "The original plan assumed it. The runtime is a tree walker over dynamically typed values, so the same code runs whatever T is and specialising per instantiation would produce identical copies. The parameters have to reach exactly one place -- the types the checker judges against -- so generics here are substitution in about eighty lines per implementation, and the termination question monomorphization would have raised does not arise.",
   },
 ];
 
@@ -150,10 +155,10 @@ export default function Home() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/twill-mark.svg" alt="twill" width={44} height={44} />
               <a
-                href={`${GH}/releases/tag/v1.6.0`}
+                href={`${GH}/releases/tag/v1.7.0`}
                 className="chip chip-brand t-eyebrow transition-colors"
               >
-                v1.6.0
+                v1.7.0
               </a>
               <span className="chip t-eyebrow">MIT licensed</span>
               <span className="chip t-eyebrow">Early prototype</span>
@@ -263,12 +268,12 @@ export default function Home() {
 
         <Section
           n="05"
-          eyebrow="New in 1.6"
-          title="The completeness release: four things were true of twill and are not now"
-          lead="1.5 made the ecosystem run. This one makes the language stop having pieces missing from the middle of it. Numeric mode is untouched -- a program with no mode systems line and no annotations behaves exactly as it did, which is what the mode gate is for. Shipped as v1.6.0 on 19 August 2026."
+          eyebrow="New in 1.7"
+          title="The two open questions: what a pattern is, and what can be generic"
+          lead="1.5 made the ecosystem run and 1.6 stopped the language having pieces missing from the middle. This one closes the two entries docs/needs.md called the largest open language questions, and closes them on the Go bootstrap and in the self-hosted compiler together. Nothing written before changes meaning: both are additions at positions that were previously syntax errors. Shipped as v1.7.0 on 20 August 2026."
         >
           <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-            <Code label="exact.tw">{EXACT_I64}</Code>
+            <Code label="patterns.tw">{PATTERNS_TW}</Code>
             <Term label="twill check">{MATCH_OUT}</Term>
           </div>
 
