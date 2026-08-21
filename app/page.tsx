@@ -327,7 +327,7 @@ export default function Home() {
           <Reveal>
             <div className="rounded-xl border border-brand-fill/35 bg-raised p-6 sm:p-8">
               <p className="max-w-[72ch] text-sm leading-relaxed text-muted">
-                As of v1.5.0 this runs. The lexer, parser, checker, evaluator, tensor
+                As of v1.4.0 this runs. The lexer, parser, checker, evaluator, tensor
                 kernels, formatter and CLI are written in the language itself, and the whole
                 tree executes on the Go bootstrap and reproduces the reference across every
                 stage: <code className="font-mono text-brand">twill check</code> matched the
