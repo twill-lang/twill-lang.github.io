@@ -155,10 +155,10 @@ export default function Home() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/twill-mark.svg" alt="twill" width={44} height={44} />
               <a
-                href={`${GH}/releases/tag/v1.7.0`}
+                href={`${GH}/releases/tag/v1.7.1`}
                 className="chip chip-brand t-eyebrow transition-colors"
               >
-                v1.7.0
+                v1.7.1
               </a>
               <span className="chip t-eyebrow">MIT licensed</span>
               <span className="chip t-eyebrow">Early prototype</span>
