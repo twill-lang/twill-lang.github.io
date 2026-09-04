@@ -44,6 +44,10 @@ function currentTheme(): Theme {
  * changes their system theme with the page open sees it change. Once they press
  * the button the listener stops mattering, since data-theme then wins in the
  * stylesheet regardless.
+ *
+ * The button is `.icon-button`: 44px of target rather than the 32 it was, with
+ * the ground drawn on hover instead of a permanent border, so the nav does not
+ * gain a third boxed control at the larger size.
  */
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const [theme, setTheme] = useState<Theme | null>(null);
@@ -86,7 +90,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
             ? "Switch to the light theme"
             : "Switch to the dark theme"
       }
-      className={`flex size-8 items-center justify-center rounded-md border border-edge text-muted transition-colors hover:border-edge-2 hover:text-text ${className}`}
+      className={`icon-button ${className}`}
     >
       {theme === null ? (
         <span className="size-4" aria-hidden />

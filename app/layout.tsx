@@ -84,10 +84,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* Ahead of everything, so the temper is settled before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        {/* The entrance state is inline on the prerendered markup, so without JS
-            it would never be animated away. */}
+        {/* Two things that are only true with JavaScript.
+            The entrance state is inline on the prerendered markup, so without JS
+            it would never be animated away. And the docs disclosure and the
+            search field are both controls that do nothing without it, so they
+            are hidden rather than left on the page as dead furniture; the nav's
+            Docs link still reaches the index, which lists every page. */}
         <noscript>
-          <style>{`.reveal{opacity:1!important;transform:none!important}`}</style>
+          <style>{`.reveal{opacity:1!important;transform:none!important}.doc-bar,.doc-search{display:none}`}</style>
         </noscript>
         <script
           type="application/ld+json"

@@ -80,3 +80,46 @@ export function Moon({ size = 16, className }: Props) {
     </svg>
   );
 }
+
+export function Copy({ size = 16, className }: Props) {
+  return (
+    <svg {...base(size)} className={className}>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V5a2 2 0 0 1 2-2h8" />
+    </svg>
+  );
+}
+
+export function Check({ size = 16, className }: Props) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="m4 12.5 5 5L20 6.5" />
+    </svg>
+  );
+}
+
+/** The mobile docs disclosure, and the search field. */
+export function Menu({ size = 16, className }: Props) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+export function Search({ size = 16, className }: Props) {
+  return (
+    <svg {...base(size)} className={className}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4 4" />
+    </svg>
+  );
+}
+
+export function ChevronDown({ size = 16, className }: Props) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}

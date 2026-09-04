@@ -1,10 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DOCS, SECTIONS, findDoc, load } from "@/lib/docs";
+import { DOCS, findDoc, load, searchIndex } from "@/lib/docs";
 import { Footer, Nav } from "@/components/chrome";
 import { Reveal } from "@/components/motion";
 import { Toc } from "@/components/toc";
+import { DocsMobileNav, DocsRail } from "@/components/docs-nav";
 import { ArrowUpRight } from "@/components/icons";
 
 export function generateStaticParams() {
@@ -31,41 +32,22 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
   const doc = findDoc(slug);
   if (!doc) notFound();
 
-  const { html, headings } = await load(doc);
-  const index = DOCS.findIndex((d) => d.slug === doc.slug);
-  const prev = DOCS[index - 1];
-  const next = DOCS[index + 1];
+  const [{ html, headings }, index] = await Promise.all([load(doc), searchIndex()]);
+  const at = DOCS.findIndex((d) => d.slug === doc.slug);
+  const prev = DOCS[at - 1];
+  const next = DOCS[at + 1];
 
   return (
     <>
       <Nav />
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+        {/* Below 1280px neither rail is on screen, so this bar is the whole of
+            the navigation: search, this page's headings, and every document. */}
+        <DocsMobileNav title={doc.title} current={doc.slug} headings={headings} index={index} />
+      </div>
+
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[190px_minmax(0,1fr)] xl:grid-cols-[190px_minmax(0,1fr)_190px]">
-        {/* Every doc, so a reader can move between them without going back. */}
-        <nav className="hidden text-sm lg:block">
-          <div className="sticky top-24 space-y-6">
-            {SECTIONS.map((section) => (
-              <div key={section}>
-                <p className="t-eyebrow text-muted">{section}</p>
-                <ul className="mt-2.5 space-y-0.5 border-l border-edge">
-                  {DOCS.filter((d) => d.section === section).map((d) => (
-                    <li key={d.slug}>
-                      <Link
-                        href={`/docs/${d.slug}/`}
-                        className={`-ml-px block border-l py-1 pl-3 text-[13px] transition-colors ${
-                          d.slug === doc.slug
-                            ? "border-brand-fill text-text"
-                            : "border-transparent text-muted hover:border-edge hover:text-text"
-                        }`}
-                      >
-                        {d.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </nav>
+        <DocsRail current={doc.slug} index={index} />
 
         <main className="min-w-0">
           <Reveal y={10}>
@@ -74,7 +56,7 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
             <p className="mt-2 text-sm leading-relaxed text-muted">{doc.blurb}</p>
             <a
               href={`https://github.com/twill-lang/twill/blob/main/docs/${doc.file}`}
-              className="mt-4 inline-flex items-center gap-1.5 text-sm text-link hover:underline"
+              className="tap mt-3 inline-flex items-center gap-1.5 text-sm text-link hover:underline"
             >
               Edit this page on GitHub
               <ArrowUpRight size={14} />
@@ -83,25 +65,22 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
 
           {/* The markdown is twill's own, fetched at build time. */}
           <article
-            className="prose-twill mt-10 border-t border-edge pt-8"
+            className="prose-twill mt-8 border-t border-edge pt-8"
             dangerouslySetInnerHTML={{ __html: html }}
           />
 
           <nav className="mt-16 flex flex-col gap-3 border-t border-edge pt-6 text-sm sm:flex-row">
             {prev && (
-              <Link
-                href={`/docs/${prev.slug}/`}
-                className="group rounded-lg border border-edge px-4 py-3 transition-colors hover:border-brand-fill"
-              >
+              <Link href={`/docs/${prev.slug}/`} className="doc-step">
                 <span className="t-eyebrow block text-muted">Previous</span>
                 <span className="mt-1 block text-link">{prev.title}</span>
               </Link>
             )}
             {next && (
-              <Link
-                href={`/docs/${next.slug}/`}
-                className="group rounded-lg border border-edge px-4 py-3 text-right transition-colors hover:border-brand-fill sm:ml-auto"
-              >
+              /* `sm:text-right` rather than `text-right`: in the stacked mobile
+                 column this card is full width, and right-aligned text there was
+                 aligned against nothing. */
+              <Link href={`/docs/${next.slug}/`} className="doc-step sm:ml-auto sm:text-right">
                 <span className="t-eyebrow block text-muted">Next</span>
                 <span className="mt-1 block text-link">{next.title}</span>
               </Link>

@@ -51,8 +51,10 @@ export function Nav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  /* `.nav-link` is a 44px-tall inline-flex. These were bare text before, which
+     gave a target about 20px high in a 60px bar that had the room all along. */
   const link = (active: boolean) =>
-    `transition-colors ${active ? "text-text" : "text-muted hover:text-text"}`;
+    `nav-link transition-colors ${active ? "text-text" : "text-muted hover:text-text"}`;
 
   return (
     <header
@@ -65,7 +67,7 @@ export function Nav() {
       <nav className="mx-auto flex h-15 max-w-6xl items-center gap-6 px-5 sm:px-8">
         <Link
           href="/"
-          className="group flex items-center gap-2.5 font-mono text-[15px] font-semibold tracking-tight"
+          className="group -ml-1 flex min-h-11 items-center gap-2.5 rounded-lg px-1 font-mono text-[15px] font-semibold tracking-tight"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -78,20 +80,20 @@ export function Nav() {
           />
           twill
         </Link>
-        <div className="ml-auto flex items-center gap-5 text-sm">
+        <div className="ml-auto flex items-center gap-1 text-sm sm:gap-2">
           <Link href="/docs/" className={link(pathname.startsWith("/docs"))}>
             Docs
           </Link>
-          <a href={`${GH}/tree/main/examples`} className={`hidden sm:inline ${link(false)}`}>
+          <a href={`${GH}/tree/main/examples`} className={`hidden sm:inline-flex ${link(false)}`}>
             Examples
           </a>
           <a href={`${GH}/releases`} className={link(false)}>
             Releases
           </a>
-          <a href={GH} aria-label="twill on GitHub" className={link(false)}>
+          <a href={GH} aria-label="twill on GitHub" className="icon-button">
             <GitHub size={17} />
           </a>
-          <ThemeToggle className="-my-1" />
+          <ThemeToggle />
         </div>
       </nav>
       <Progress />
@@ -113,7 +115,7 @@ export function Footer() {
         <p className="sm:ml-auto">
           <a
             href="https://github.com/twill-lang"
-            className="inline-flex items-center gap-1.5 text-link hover:underline"
+            className="tap gap-1.5 text-link hover:underline"
           >
             <GitHub size={15} />
             github.com/twill-lang
