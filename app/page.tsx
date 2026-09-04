@@ -7,6 +7,7 @@ import { ShapeLab } from "@/components/shape-lab";
 import { BootstrapChain } from "@/components/chain";
 import { ArrowRight, ArrowUpRight, Book, Download } from "@/components/icons";
 import { latest, longDate, releases, unreleased } from "@/lib/releases";
+import { handSorts, word } from "@/lib/roadmap";
 
 const GH = "https://github.com/twill-lang/twill";
 const INSTALL = "go install github.com/twill-lang/twill/cmd/twill@latest";
@@ -24,19 +25,51 @@ const INSTALL = "go install github.com/twill-lang/twill/cmd/twill@latest";
  * merged and not yet shipped. The figure says so, in the figure.
  * ------------------------------------------------------------------------- */
 
+/* examples/montecarlo_option.tw, whole. The previous version of this listing
+   was an abridgement: the prints were cut, so the program shown produced
+   none of the output beside it and a reader who copied it got nothing. The
+   only backslash-escape below is the one backtick in the file's own comment,
+   which a template literal cannot carry raw. */
 const MONTE_CARLO = `
-seed(42)
-let Z = randn(200000)                              # fixed shocks: the price is smooth in its inputs
+# montecarlo_option.tw: price a European call by Monte Carlo, and get its
+# Greeks (delta, vega) by differentiating the pricer. No finite differences,
+# no extra libraries. \`grad\` does it.
+#
+# This is the finance beachhead: the payoff is parallel and simple, the result
+# is reproducible (seeded RNG), and the sensitivities come straight from autodiff,
+# something Python needs JAX or bumping-and-revaluing to match.
 
+seed(42)
+
+# Fix the standard-normal shocks once, so the price is a smooth, differentiable
+# function of the inputs (common random numbers) and fully reproducible.
+let paths = 200000
+let Z = randn(paths)
+
+# Terminal-value pricer for a call under geometric Brownian motion.
 fn call_price(S0, K, r, sigma, T) {
   let drift = (r - 0.5 * sigma * sigma) * T
   let ST = S0 * exp(drift + sigma * sqrt(T) * Z)   # simulated terminal prices
-  exp(-r * T) * mean(relu(ST - K))                 # discounted expected payoff
+  let payoff = relu(ST - K)                        # max(ST - K, 0)
+  exp(-r * T) * mean(payoff)                       # discounted expected payoff
 }
 
-let price = call_price(100.0, 100.0, 0.05, 0.2, 1.0)
-let delta = grad(fn(s) = call_price(s, 100.0, 0.05, 0.2, 1.0))(100.0)
-let vega  = grad(fn(v) = call_price(100.0, 100.0, 0.05, v, 1.0))(0.2)
+let S0 = 100.0
+let K = 100.0
+let r = 0.05
+let sigma = 0.2
+let T = 1.0
+
+let price = call_price(S0, K, r, sigma, T)
+
+# Greeks by autodiff: delta = dPrice/dS0, vega = dPrice/dSigma.
+let delta = grad(fn(s) = call_price(s, K, r, sigma, T))(S0)
+let vega = grad(fn(v) = call_price(S0, K, r, v, T))(sigma)
+
+print("European call, S0=100 K=100 r=5% vol=20% T=1y, MC paths:", paths)
+print("  price =", price, " (Black-Scholes 10.4506)")
+print("  delta =", delta, " (Black-Scholes 0.6368)")
+print("  vega  =", vega, "  (Black-Scholes 37.524)")
 `;
 
 const MONTE_CARLO_OUT = `
@@ -47,6 +80,12 @@ European call, S0=100 K=100 r=5% vol=20% T=1y, MC paths: 200000
   vega  = 37.488476   (Black-Scholes 37.524)
 `;
 
+/* The refusal is IN the listing now. This pair used to show a seven-line
+   notional.tw with no error in it beside `$ twill check bad.tw` reporting a
+   fault on a line of a file the page never showed, which is the one thing a
+   figure like this must not do: the reader cannot check the claim against
+   anything, and the line number points at nothing. Same program, one more
+   statement, and the output below is that file's own. */
 const UNITS = `
 unit USD
 unit share
@@ -54,15 +93,23 @@ unit share
 fn notional(px: USD/share, qty: share) -> USD { px * qty }
 
 let price: USD/share = 150.0
-let value = notional(price, 200.0)   # USD
+let qty: share = 200.0
+let value = notional(price, qty)   # USD
+let bad = price + qty              # USD/share plus share
 `;
 
 const UNITS_OUT = `
-$ twill check bad.tw
-bad.tw:6: shape error: unit mismatch: USD*share^-1 + share
-  6 | let bad = price + qty
+$ twill check notional.tw
+notional.tw:9: shape error: unit mismatch: USD*share^-1 + share
+  9 | let bad = price + qty              # USD/share plus share
 `;
 
+/* Same repair as notional.tw above. The listing was a clean expr.tw beside
+   `$ twill check load.tw` reporting a non-exhaustive match on an Opt and a
+   Box[I64]/Box[Str] mismatch, neither of which appeared anywhere on the page.
+   The two faults are in this file now, one for each thing the section is
+   about: a match that does not cover its enum, and a generic instantiated
+   with the wrong argument. */
 const PATTERNS = `
 mode systems
 
@@ -79,14 +126,22 @@ fn describe(e: Expr) -> Str {
     other => "something else",                    # a catch-all with a name
   }
 }
+
+fn depth(e: Expr) -> I64 {
+  match e {                                       # no catch-all, and two cases short
+    Num(v) => 0,
+  }
+}
+
+let mixed: Pair[F64, F64] = Pair { left: 1.0, right: "two" }
 `;
 
 const PATTERNS_OUT = `
-$ twill check load.tw
-load.tw:6: shape error: match on Opt is not exhaustive: missing Some(Err)
-  6 |   match o {
-load.tw:13: shape error: "b" is declared Box[I64] but the value is Box[Str]
-  13 |   let b: Box[I64] = Box { held: "one" }
+$ twill check expr.tw
+expr.tw:18: shape error: match on Expr is not exhaustive: missing Neg, Mul
+  18 |   match e {                                       # no catch-all, and two cases short
+expr.tw:23: shape error: "mixed" is declared Pair[F64, F64] but the value is Pair[F64, Str]
+  23 | let mixed: Pair[F64, F64] = Pair { left: 1.0, right: "two" }
 `;
 
 const SORT = `
@@ -119,13 +174,18 @@ b 2
 c 3
 `;
 
+/* `--abbrev-ref HEAD` rather than `rev-parse --short HEAD`, which is what this
+   figure ran before. The output of the short form is a commit hash, so the
+   terminal block carried a hash that was current on the day it was pasted and
+   is wrong the moment the compiler repository takes another commit. A branch
+   name is the same demonstration and anybody can reproduce it. */
 const RUN = `
 mode systems
 
 fn main() {
-  let argv: Arr[Str] = ["rev-parse", "--short", "HEAD"]
+  let argv: Arr[Str] = ["rev-parse", "--abbrev-ref", "HEAD"]
   match run("git", argv, ".") {          # no shell: argv stays a vector
-    Ok(sha) => print("checkout is at", sha),
+    Ok(branch) => print("checkout is on", branch),
     Err(e) => print("git said:", e),
   }
 }
@@ -133,7 +193,7 @@ fn main() {
 
 const RUN_OUT = `
 $ twill run head.tw
-checkout is at 698a868
+checkout is on main
 
 $ TWILL_NO_EXEC=1 twill run head.tw
 git said: run: refused to start "git" because TWILL_NO_EXEC is set
@@ -234,9 +294,50 @@ const NOT_DONE = [
   "The self-hosted compiler runs on the Go bootstrap. The Go-free binary, and the triple build that would prove it, are the stage after this one.",
 ];
 
+/** `four` -> `Four`, for a count that opens a sentence or a heading. */
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** "four in spool, three in twill itself, two in bobbin, one in loom and one in weft" */
+function splitByRepo(byRepo: { repo: string; n: number }[]): string {
+  const parts = byRepo.map(
+    ({ repo, n }) => `${word(n)} in ${repo === "twill" ? "twill itself" : repo}`,
+  );
+  if (parts.length < 2) return parts.join("");
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
 export default async function Home() {
-  const [newest, pending, all] = await Promise.all([latest(), unreleased(), releases()]);
+  const [newest, pending, all, sorts] = await Promise.all([
+    latest(),
+    unreleased(),
+    releases(),
+    handSorts(),
+  ]);
   const recent = all.filter((r) => r.version).slice(0, 3);
+
+  /* Figure A's whole argument is a count of other people's source, and it was
+     typed in here: "eleven hand-written sorts ... four in spool, one in loom,
+     two in bobbin, one in weft, and three in twill itself, two of which are the
+     same function under the same name". The sentence cited docs/roadmap.md for
+     all of it and did not read it. lib/roadmap.ts reads it now, and every number
+     in the paragraph below is counted off that document's own list of sorts when
+     this page is built. */
+  const repeat = sorts.repeated[0];
+  const sortsBody =
+    `sort ordered strings and nothing else, so ${word(sorts.byRepo.length)} codebases wrote ` +
+    `their own. docs/roadmap.md counts ${word(sorts.all.length)} hand-written sorts and names ` +
+    `every one: ${splitByRepo(sorts.byRepo)}` +
+    (repeat
+      ? `; ${word(repeat.n)} of those are the same function, ${repeat.fn}, under the same name ` +
+        `in two files of the ${repeat.repo} repository`
+      : "") +
+    ". skein needed the comparison most, because it sorts an index array by comparing through a " +
+    "second array the closure captures, and that was only expressible once function values landed " +
+    "in 1.7. Every form is stable, which here is correctness rather than a nicety: skein assigns " +
+    "token ids from a sorted vocabulary, so an unstable sort would make the ids a function of the " +
+    "sort's internals rather than of the corpus.";
 
   // Figure C is about one specific unreleased change, so it is shown only while
   // the changelog still has that change pending. On the day it ships the figure
@@ -349,7 +450,7 @@ export default async function Home() {
           lead="No bumping, no second library. grad went through 200,000 simulated paths, a relu payoff and a mean, and landed on the closed-form Greeks."
         >
           <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr] lg:items-start">
-            <Code label="montecarlo_option.tw">{MONTE_CARLO}</Code>
+            <Code label="examples/montecarlo_option.tw">{MONTE_CARLO}</Code>
             <Term label="output">{MONTE_CARLO_OUT}</Term>
           </div>
         </Section>
@@ -406,7 +507,7 @@ export default async function Home() {
           n="06"
           eyebrow="What shipped"
           title="Three walls the ecosystem kept hitting"
-          lead="Every entry here came from docs/roadmap.md, which ranks what the language is missing by how many of six independently written codebases hit each wall on their own. The list below is read out of the changelog when this page is built, so it is the releases the language actually has rather than the ones somebody remembered to type in."
+          lead="Every entry here came from docs/roadmap.md, which ranks what the language is missing by how many of the independently written codebases hit each wall on their own. The list below is read out of the changelog when this page is built, so it is the releases the language actually has rather than the ones somebody remembered to type in."
         >
           <Reveal>
             <ol className="hairline-grid grid sm:grid-cols-3">
@@ -428,7 +529,7 @@ export default async function Home() {
             index="A"
             version={`v${newest.version}`}
             title="sort orders more than strings, and takes a comparison"
-            body="sort ordered strings and nothing else, so five codebases wrote their own. docs/roadmap.md counts eleven hand-written sorts and names every one: four in spool, one in loom, two in bobbin, one in weft, and three in twill itself, two of which are the same function under the same name in two files of the compiler repo. skein needed the comparison most, because it sorts an index array by comparing through a second array the closure captures, and that was only expressible once function values landed in 1.7. Every form is stable, which here is correctness rather than a nicety: skein assigns token ids from a sorted vocabulary, so an unstable sort would make the ids a function of the sort's internals rather than of the corpus."
+            body={sortsBody}
             source={SORT}
             sourceLabel="sort_demo.tw"
             output={SORT_OUT}
@@ -452,7 +553,7 @@ export default async function Home() {
               version="on main"
               pending
               title="A function defined twice was silently the second one"
-              body="This one has merged and is not in a release yet, which is why the figure runs it twice. spool replaced two of its insertion sorts by writing the new one-line versions above the old bodies, which stayed; both files kept running the insertion sort through a passing test suite, a passing source gate and passing CI. There is no conditional compilation in this language, so a second declaration of one name in one file is an edit that went wrong, and a sweep of 458 .tw files across the ecosystem found no case that was not. Both checkers refuse it now, and the message names which definition runs."
+              body="This one has merged and is not in a release yet, which is why the figure runs it twice. spool replaced two of its insertion sorts by writing the new one-line versions above the old bodies, which stayed; both files kept running the insertion sort through a passing test suite, a passing source gate and passing CI. There is no conditional compilation in this language, so a second declaration of one name in one file is an edit that went wrong, and the sweep of the ecosystem's twill sources that preceded the change found no case that was not. Both checkers refuse it now, and the message names which definition runs."
               source={DUPLICATE}
               sourceLabel="lockfile.tw"
               output={DUPLICATE_OUT}
@@ -500,7 +601,7 @@ export default async function Home() {
         <Section
           n="08"
           eyebrow="The ecosystem"
-          title="Ten repositories, nine of them written in twill"
+          title={`${cap(word(ECOSYSTEM.length))} repositories, ${word(ECOSYSTEM.length - 1)} of them written in twill`}
           lead="Everything downstream of the compiler is written in twill itself, which is the same experiment run again: a real program against the subset, with its own list of what is missing. Those lists are what the roadmap ranks."
         >
           <Stagger className="hairline-grid grid sm:grid-cols-2" step={0.035}>

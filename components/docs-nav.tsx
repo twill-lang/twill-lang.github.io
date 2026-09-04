@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
 import { DOCS, SECTIONS, type Heading, type SearchEntry } from "@/lib/docs";
 import { ChevronDown, Search } from "@/components/icons";
 
@@ -135,6 +134,20 @@ export function DocsRail({ current, index }: { current: string; index: SearchEnt
  * The sheet closes on Escape and on a route change, and while it is open the
  * body does not scroll behind it. The button reports its state with
  * aria-expanded so it is a disclosure to a screen reader rather than a mystery.
+ *
+ * No JS animation, and that is a correctness decision rather than a taste one.
+ * The first version of this component mounted the sheet inside `AnimatePresence`
+ * at `opacity: 0` and set `document.body.style.overflow = "hidden"` in the same
+ * breath. Opened where no animation frame arrives, the tween that clears the
+ * opacity never runs: the sheet is invisible, and the article behind it is
+ * locked from scrolling by an effect that does not need frames at all. The
+ * reader is left on a page that will not move for a reason they cannot see.
+ * That is the exact hazard the rest of this change was written to remove, and
+ * it was reintroduced here.
+ *
+ * So the sheet is plain conditional markup. It is visible the instant it is in
+ * the document, in every context, and the entrance it has is a CSS transform in
+ * globals.css that no state of the page can turn into a hidden element.
  */
 export function DocsMobileNav({
   title,
@@ -148,8 +161,6 @@ export function DocsMobileNav({
   index: SearchEntry[];
 }) {
   const [open, setOpen] = useState(false);
-  const still = useReducedMotion() ?? false;
-  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -166,68 +177,60 @@ export function DocsMobileNav({
   }, [open]);
 
   return (
-    <div className="doc-bar xl:hidden">
-      <button
-        type="button"
-        className="doc-bar-button"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="doc-bar-title">{title}</span>
-        <span className={`doc-bar-chevron ${open ? "is-open" : ""}`} aria-hidden>
-          <ChevronDown size={16} />
-        </span>
-        <span className="sr-only">{open ? "Close" : "Open"} the documentation menu</span>
-      </button>
+    <>
+      {/* The scrim is a SIBLING of the bar rather than a child of it, and that is
+          not a preference. `.doc-bar` carries `backdrop-filter`, which makes it
+          the containing block for any `position: fixed` descendant, so a scrim
+          with `inset: 0` inside it was laid out against the bar: 375 by 48
+          rather than 375 by 812. Nothing behind the sheet was dimmed and a tap
+          outside it landed on the article, so the one way out of this menu that
+          does not involve finding the button again did nothing at all. Measured
+          on the built export at 375px before the move. */}
+      {open && <div className="doc-scrim" onClick={() => setOpen(false)} aria-hidden />}
 
-      <AnimatePresence>
+      <div className="doc-bar xl:hidden">
+        <button
+          type="button"
+          className="doc-bar-button"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span className="doc-bar-title">{title}</span>
+          <span className={`doc-bar-chevron ${open ? "is-open" : ""}`} aria-hidden>
+            <ChevronDown size={16} />
+          </span>
+          <span className="sr-only">{open ? "Close" : "Open"} the documentation menu</span>
+        </button>
+
         {open && (
-          <>
-            <motion.div
-              className="doc-scrim"
-              onClick={() => setOpen(false)}
-              initial={still ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={still ? undefined : { opacity: 0 }}
-              transition={{ duration: 0.18 }}
-              aria-hidden
-            />
-            <motion.div
-              ref={panel}
-              className="doc-sheet"
-              initial={still ? false : { opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={still ? undefined : { opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <SearchField index={index} onPick={() => setOpen(false)} autoFocus />
+          <div className="doc-sheet">
+            <SearchField index={index} onPick={() => setOpen(false)} autoFocus />
 
-              {headings.length > 0 && (
-                <div className="mt-6">
-                  <p className="t-eyebrow text-muted">On this page</p>
-                  <ul className="mt-2.5 border-l border-edge">
-                    {headings.map((h, i) => (
-                      <li key={`${h.id}-${i}`}>
-                        <a
-                          href={`#${h.id}`}
-                          onClick={() => setOpen(false)}
-                          className={`doc-rail-link ${h.level === 3 ? "is-nested" : ""}`}
-                        >
-                          {h.text}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
+            {headings.length > 0 && (
               <div className="mt-6">
-                <DocList current={current} onPick={() => setOpen(false)} />
+                <p className="t-eyebrow text-muted">On this page</p>
+                <ul className="mt-2.5 border-l border-edge">
+                  {headings.map((h, i) => (
+                    <li key={`${h.id}-${i}`}>
+                      <a
+                        href={`#${h.id}`}
+                        onClick={() => setOpen(false)}
+                        className={`doc-rail-link ${h.level === 3 ? "is-nested" : ""}`}
+                      >
+                        {h.text}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </motion.div>
-          </>
+            )}
+
+            <div className="mt-6">
+              <DocList current={current} onPick={() => setOpen(false)} />
+            </div>
+          </div>
         )}
-      </AnimatePresence>
-    </div>
+      </div>
+    </>
   );
 }

@@ -41,8 +41,22 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
     <>
       <Nav />
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
-        {/* Below 1280px neither rail is on screen, so this bar is the whole of
-            the navigation: search, this page's headings, and every document. */}
+        {/* Three bands, and the bar earns its place in two of them.
+
+            Below 1024px it is the whole of the navigation: DocsRail is
+            `hidden lg:block` and Toc is `hidden xl:block`, so nothing else is on
+            screen and a reader has search, this page's headings and the document
+            list here or nowhere.
+
+            Between 1024px and 1280px the rail is on screen and the contents are
+            not, so the bar and the rail are both visible. That is deliberate
+            rather than an oversight: what the bar adds in that band is this
+            page's headings, which is the half the rail does not carry. An
+            earlier comment here claimed neither rail was on screen below
+            1280px, which is wrong at any width from 1024px up.
+
+            From 1280px both rails are on screen and the bar is gone,
+            `xl:hidden`. */}
         <DocsMobileNav title={doc.title} current={doc.slug} headings={headings} index={index} />
       </div>
 

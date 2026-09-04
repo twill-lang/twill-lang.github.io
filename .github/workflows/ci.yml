@@ -37,7 +37,17 @@ jobs:
       # "types" rather than "build" and takes a second rather than a minute.
       - run: npm run typecheck
 
-      # The docs and the changelog are fetched from twill-lang/twill during this,
-      # so it is also the check that every published doc still exists upstream
-      # and that the changelog is still shaped the way lib/releases.ts parses.
+      # The docs, the changelog and the two corpus counts are fetched from
+      # twill-lang/twill during this, so it is also the check that every
+      # published doc still exists upstream, that the changelog is still shaped
+      # the way lib/releases.ts parses, and that the definitions lib/corpus.ts
+      # reads the corpus sizes out of are still where it looks for them.
       - run: npm run build
+        # lib/corpus.ts reads the compiler repository's git tree through
+        # api.github.com, which is sixty requests an hour per IP without a
+        # token and shared with every other job on the runner. The token the
+        # workflow already has raises that to five thousand; the build throws
+        # rather than guessing at a number, so the alternative to passing it is
+        # a red run on somebody else's traffic.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -161,6 +161,10 @@
   --term-text: #d2f0e4;
   --term-edge: #1a4038;
   --term-shell: #0c2620;
+
+  /* The one easing curve on the site, so an entrance in one component moves the
+     way an entrance in another one does. */
+  --reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @theme inline {
@@ -461,6 +465,60 @@ a.chip-brand:hover {
  * utilities, which is where a component class belongs.
  * ------------------------------------------------------------------------- */
 @layer components {
+
+  /* ---------------------------------------------------------------------------
+     Entrances.
+
+     The resting state of every element on this site is visible. An entrance is
+     an animation laid on top of that resting state by the `is-entering` class,
+     and components/motion.tsx adds that class only from inside an animation
+     frame. Nothing here can leave content hidden, because there is no rule that
+     hides anything: remove every animation, or never start one, and what is
+     left is the finished page.
+
+     This replaced a JS tween whose start state was written into the markup. On
+     the built export with requestAnimationFrame stubbed out, that arrangement
+     left 49 of the home page's 54 wrappers at opacity 0 with nothing scheduled
+     to clear them.
+     --------------------------------------------------------------------------- */
+  @keyframes reveal-in {
+    from {
+      opacity: 0;
+      transform: translateY(var(--reveal-y, 12px));
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal.is-entering {
+      animation: reveal-in 0.5s var(--reveal-ease) both;
+      animation-delay: var(--reveal-delay, 0s);
+    }
+
+    /* The parent takes the class; the cells animate. Keeping the animation off
+       the parent keeps a transform off the layout element, which would
+       otherwise become the containing block for anything positioned inside. */
+    .reveal-group.is-entering > .reveal-item {
+      animation: reveal-in 0.45s var(--reveal-ease) both;
+    }
+
+    /* The stagger, as position rather than as a hand-written number per cell.
+       CSS cannot yet do arithmetic on a child's index portably, so the ladder
+       is written out. The longest run on the site is ten cells; past the
+       twelfth a cell simply arrives with the first, which is a cosmetic edge
+       rather than a missing entrance. */
+    .reveal-group.is-entering > .reveal-item:nth-child(1) { animation-delay: calc(var(--reveal-delay, 0s) + 0 * var(--reveal-step, 0.045s)); }
+    .reveal-group.is-entering > .reveal-item:nth-child(2) { animation-delay: calc(var(--reveal-delay, 0s) + 1 * var(--reveal-step, 0.045s)); }
+    .reveal-group.is-entering > .reveal-item:nth-child(3) { animation-delay: calc(var(--reveal-delay, 0s) + 2 * var(--reveal-step, 0.045s)); }
+    .reveal-group.is-entering > .reveal-item:nth-child(4) { animation-delay: calc(var(--reveal-delay, 0s) + 3 * var(--reveal-step, 0.045s)); }
+    .reveal-group.is-entering > .reveal-item:nth-child(5) { animation-delay: calc(var(--reveal-delay, 0s) + 4 * var(--reveal-step, 0.045s)); }
+    .reveal-group.is-entering > .reveal-item:nth-child(6) { animation-delay: calc(var(--reveal-delay, 0s) + 5 * var(--reveal-step, 0.045s)); }
+    .reveal-group.is-entering > .reveal-item:nth-child(7) { animation-delay: calc(var(--reveal-delay, 0s) + 6 * var(--reveal-step, 0.045s)); }
+    .reveal-group.is-entering > .reveal-item:nth-child(8) { animation-delay: calc(var(--reveal-delay, 0s) + 7 * var(--reveal-step, 0.045s)); }
+    .reveal-group.is-entering > .reveal-item:nth-child(9) { animation-delay: calc(var(--reveal-delay, 0s) + 8 * var(--reveal-step, 0.045s)); }
+    .reveal-group.is-entering > .reveal-item:nth-child(10) { animation-delay: calc(var(--reveal-delay, 0s) + 9 * var(--reveal-step, 0.045s)); }
+    .reveal-group.is-entering > .reveal-item:nth-child(11) { animation-delay: calc(var(--reveal-delay, 0s) + 10 * var(--reveal-step, 0.045s)); }
+    .reveal-group.is-entering > .reveal-item:nth-child(12) { animation-delay: calc(var(--reveal-delay, 0s) + 11 * var(--reveal-step, 0.045s)); }
+  }
 
   /* ---------------------------------------------------------------------------
      Touch targets.
@@ -908,8 +966,20 @@ a.chip-brand:hover {
   /* ---------------------------------------------------------------------------
      Docs navigation: the rail, the search field, and the phone sheet.
      --------------------------------------------------------------------------- */
+  /* 13px text on 1.35 with 0.55rem of padding is a 35px row, which is fine for a
+     mouse pointer on a 190px rail and is not a touch target. The rail's rows and
+     the sheet's rows are the same component, so the sheet inherited 35px and the
+     phone got 147 navigation targets it could not reliably hit.
+
+     Two rules rather than one number: the rail keeps its density where the
+     pointer is fine (a 44px row over sixteen documents and a page of headings is
+     a rail nobody can see the shape of), and every row grows to 44px wherever a
+     finger is doing the pointing. `flex` rather than `block` so a row that wraps
+     to two lines keeps its text centred in the taller box. */
   .doc-rail-link {
-    display: block;
+    display: flex;
+    align-items: center;
+    min-height: 35px;
     margin-left: -1px;
     padding: 0.55rem 0 0.55rem 0.75rem;
     border-left: 1px solid transparent;
@@ -917,6 +987,13 @@ a.chip-brand:hover {
     line-height: 1.35;
     color: var(--muted);
     transition: color 0.18s ease, border-color 0.18s ease;
+  }
+  /* The sheet is the phone's navigation, so its rows are touch targets whatever
+     the pointer says: a narrow window on a desktop is still the layout a phone
+     gets, and this is the one place the two cannot be told apart. */
+  .doc-sheet .doc-rail-link { min-height: 44px; }
+  @media (pointer: coarse) {
+    .doc-rail-link { min-height: 44px; }
   }
   .doc-rail-link:hover { color: var(--text); border-left-color: var(--edge-2); }
   .doc-rail-link.is-current { color: var(--text); border-left-color: var(--brand-fill); }
@@ -1031,7 +1108,15 @@ a.chip-brand:hover {
   }
   /* Absolute, not in flow: an accordion that pushes the article down moves the
      text the reader was looking at, and the sheet is a menu rather than part of
-     the page. The scrim behind it is what closes it on a tap outside. */
+     the page. The scrim behind it is what closes it on a tap outside.
+
+     The entrance moves it and does not fade it, deliberately. This sheet locks
+     the page behind it while it is open, so a sheet that arrives at opacity 0
+     and needs frames to become visible is a page a reader cannot scroll and
+     cannot see the reason for. A transform is safe under the same failure: with
+     no frames at all the rule never runs and the sheet is simply there, and
+     frozen at the first keyframe it is six pixels high and completely legible.
+     There is no opacity anywhere in this animation for that reason. */
   .doc-sheet {
     position: absolute;
     top: 100%;
@@ -1047,6 +1132,12 @@ a.chip-brand:hover {
   }
   @media (min-width: 640px) {
     .doc-sheet { padding-inline: 2rem; }
+  }
+  @keyframes doc-sheet-in {
+    from { transform: translateY(-6px); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .doc-sheet { animation: doc-sheet-in 0.18s var(--reveal-ease); }
   }
 
 
@@ -1070,7 +1161,10 @@ a.chip-brand:hover {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
-  /* Covers the window between first paint and hydration, when the prerendered
-     entrance state is still on the element. */
-  .reveal { opacity: 1 !important; transform: none !important; }
+  /* Nothing else is needed here. Every entrance on this site is an animation
+     over a visible resting state, so switching animation off IS the finished
+     page rather than a blank one. That is the whole reason the mechanism was
+     changed; the previous version needed an opacity override here and a second
+     one in the <noscript> block, and still lost the page in any context that
+     ran the script without delivering frames. */
 }
