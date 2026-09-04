@@ -98,8 +98,15 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
         <motion.span
           key={theme}
           aria-hidden
-          initial={still ? false : { rotate: -75, opacity: 0, scale: 0.7 }}
-          animate={{ rotate: 0, opacity: 1, scale: 1 }}
+          /* No opacity in the initial state, on purpose, and it is the same
+             rule the rest of this site follows: a tween's start state is
+             written into the element, and a tween needs frames. With opacity
+             in here, a browser that hydrates and then does not paint left the
+             sun or moon glyph invisible inside a button that still claimed to
+             have one. Frozen at this first keyframe it is a slightly turned,
+             slightly small icon, which is legible. */
+          initial={still ? false : { rotate: -75, scale: 0.7 }}
+          animate={{ rotate: 0, scale: 1 }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           className="flex items-center justify-center"
         >

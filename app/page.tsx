@@ -217,8 +217,14 @@ fn sort_deps(xs: Arr[Str]) -> Arr[Str] {
 }
 `;
 
-const DUPLICATE_OUT = `
-$ twill check lockfile.tw            # v1.9.0, the release you can download
+/* The only annotation on this page that is not the binary's own output: the two
+   runs are the same command against two builds, so the block has to say which
+   build gave which answer. The release half of that label is the last version
+   number that was typed into this file, in a commit whose point was that no
+   number here is typed in. It comes off the changelog now, like the chip and
+   the figure labels, so the day this change ships the label moves with it. */
+const duplicateOut = (version: string) => `
+$ twill check lockfile.tw            # v${version}, the release you can download
 lockfile.tw: no shape problems found
 
 $ twill check lockfile.tw            # main
@@ -428,7 +434,7 @@ export default async function Home() {
           n="01"
           eyebrow="Before anything runs"
           title="The most useful thing twill does is refuse to start"
-          lead="Change a dimension in the signature and watch the checker change its mind. The messages below are what the 1.9.0 binary prints for each of these programs, character for character, and the arithmetic deciding between them is the same one rule the checker uses: the inner dimensions of a matrix multiply have to agree."
+          lead={`Change a dimension in the signature and watch the checker change its mind. The messages below are what the ${newest.version} binary prints for each of these programs, character for character, and the arithmetic deciding between them is the same one rule the checker uses: the inner dimensions of a matrix multiply have to agree.`}
         >
           <ShapeLab />
           <p className="mt-6 max-w-[70ch] text-sm leading-relaxed text-muted">
@@ -556,7 +562,7 @@ export default async function Home() {
               body="This one has merged and is not in a release yet, which is why the figure runs it twice. spool replaced two of its insertion sorts by writing the new one-line versions above the old bodies, which stayed; both files kept running the insertion sort through a passing test suite, a passing source gate and passing CI. There is no conditional compilation in this language, so a second declaration of one name in one file is an edit that went wrong, and the sweep of the ecosystem's twill sources that preceded the change found no case that was not. Both checkers refuse it now, and the message names which definition runs."
               source={DUPLICATE}
               sourceLabel="lockfile.tw"
-              output={DUPLICATE_OUT}
+              output={duplicateOut(newest.version)}
               outputLabel="twill check, twice"
             />
           )}

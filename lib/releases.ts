@@ -127,10 +127,20 @@ export async function releases(): Promise<Release[]> {
   return parsed;
 }
 
-/** The newest tagged release. What the version chip says, and what a visitor can download. */
-export async function latest(): Promise<Release> {
+/**
+ * The newest tagged release. What the version chip says, and what a visitor can
+ * download.
+ *
+ * Typed with a non-null version, because that is what "tagged" means and
+ * because the page now interpolates this number into prose and into a terminal
+ * annotation rather than only into a chip. `releases()` has already thrown if
+ * the changelog held no tagged release, so the find below cannot miss.
+ */
+export type Tagged = Release & { version: string };
+
+export async function latest(): Promise<Tagged> {
   const all = await releases();
-  return all.find((r) => r.version)!;
+  return all.find((r): r is Tagged => r.version !== null)!;
 }
 
 /** Work merged since the last tag, or null when the changelog has none pending. */

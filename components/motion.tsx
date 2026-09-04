@@ -19,18 +19,35 @@ import { useEffect, useRef, type ReactNode } from "react";
  *
  * So nothing here is hidden by default. The resting state of every element on
  * this page is visible, in the HTML, before any script runs, and an entrance is
- * a CSS animation added by a class. The class is added in two places only:
+ * a CSS animation added by a class. The class is added in one place only: an
+ * `IntersectionObserver` callback, which the browser delivers at the end of a
+ * frame and therefore does not deliver at all when there are no frames.
  *
- *   - from a `requestAnimationFrame` callback, for the entrance that runs on
- *     load, so a document that never gets a frame never gets the class;
- *   - from an `IntersectionObserver` callback, for the scroll reveals, which
- *     the browser delivers at the end of a frame and therefore not at all when
- *     there are no frames.
- *
- * Both gates are the rendering loop itself. A page that cannot animate cannot
+ * That gate is the rendering loop itself. A page that cannot animate cannot
  * reach the hidden state, which is the property the old arrangement lacked and
  * the reason a report could claim the entrances were fine while the whole page
  * below the release strip was blank.
+ *
+ * AND NOTHING THAT HAS ALREADY BEEN PAINTED IS EVER ENTERED.
+ *
+ * That is the second rule, and the first revision of this file did not have it.
+ * Being safe against a browser that never paints is not the same as being right
+ * on one that does. The entrance is a class added at hydration, hydration
+ * happens after first paint, and the animation starts at opacity 0: so on a
+ * real browser the hero shipped visible, was read, and then blinked out for
+ * half a second before fading back. Measured on the built export, forcing the
+ * class on and reading the resolved opacity back: 1 in the shipped markup, 0
+ * the instant the class lands.
+ *
+ * So each hook asks one question before it arms anything: was this element in
+ * the viewport when the page hydrated? If it was, the reader has already seen
+ * it, and there is no entrance to run -- only content to take away and give
+ * back. That element keeps the resting state it shipped with and no observer is
+ * created for it. Everything below the fold is untouched by this and enters on
+ * scroll exactly as before, because nothing has painted it yet.
+ *
+ * The check can only ever withhold the class, never add it, so the first rule
+ * survives intact: the hidden state is still reachable only from inside a frame.
  *
  * The class is added imperatively rather than through React state: these
  * wrappers never re-render for any other reason, and going through state would
@@ -45,14 +62,19 @@ function still(): boolean {
   );
 }
 
-/** Add `is-entering` from inside a frame, once. */
-function useEntranceOnLoad(ref: React.RefObject<HTMLDivElement | null>) {
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || still()) return;
-    const id = requestAnimationFrame(() => el.classList.add("is-entering"));
-    return () => cancelAnimationFrame(id);
-  }, [ref]);
+/**
+ * Has the reader already seen this element?
+ *
+ * Called once, at hydration, which is after the browser's first paint, so a box
+ * that overlaps the viewport now is a box that has been on screen. Deliberately
+ * the real viewport rather than the margin the observer below uses to trigger:
+ * the question is what was painted, not what is close enough to start.
+ */
+function painted(el: Element): boolean {
+  const r = el.getBoundingClientRect();
+  const h = window.innerHeight || document.documentElement.clientHeight;
+  const w = window.innerWidth || document.documentElement.clientWidth;
+  return r.bottom > 0 && r.top < h && r.right > 0 && r.left < w;
 }
 
 /** Add `is-entering` when the element first scrolls into view, once. */
@@ -60,6 +82,10 @@ function useEntranceInView(ref: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const el = ref.current;
     if (!el || still()) return;
+
+    // On screen already: see the second rule at the top of this file. The
+    // reader is looking at this content, so there is nothing to enter.
+    if (painted(el)) return;
 
     // No IntersectionObserver means no way to know when to start, and the
     // element is already visible, so there is nothing to do.
@@ -110,7 +136,18 @@ export function Reveal({
   );
 }
 
-/** The hero's entrance. Runs on load rather than on scroll. */
+/**
+ * The hero's wrapper.
+ *
+ * It used to run its entrance from a `requestAnimationFrame` on load. That
+ * callback cannot arrive before the browser has painted the hero -- it is the
+ * hero, it is always in the first viewport -- so what it produced was never an
+ * entrance, only the blink described at the top of this file. It takes the same
+ * guarded hook as everything else now, which declines for anything already on
+ * screen, and the hero is always on screen. The site's motion therefore begins
+ * at the first thing the reader scrolls to, which is the first thing that has
+ * an unpainted state to move from.
+ */
 export function Enter({
   children,
   delay = 0,
@@ -121,7 +158,7 @@ export function Enter({
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  useEntranceOnLoad(ref);
+  useEntranceInView(ref);
   return (
     <div ref={ref} className={className ? `reveal ${className}` : "reveal"} style={vars(12, delay)}>
       {children}
