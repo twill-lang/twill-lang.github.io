@@ -76,6 +76,24 @@ load.tw:14: shape error: match on Opt is not exhaustive: missing Some(Err)
 load.tw:31: shape error: "b" is declared Box[I64] but the value is Box[Str]
 `;
 
+/* What 1.8 and 1.9 closed. Both releases came out of the same place the 1.7
+   entries did: docs/needs.md in each satellite, ranked by how many independently
+   written codebases hit the same wall. */
+const SINCE = [
+  {
+    title: "A program could not start another program",
+    body: "run(program, argv, dir) -> Res[Str, Str], in 1.8.0. It takes an argument vector and never a shell, so a filename with a space in it is a filename rather than two, and TWILL_NO_EXEC refuses every call for a caller that wants the guarantee in writing. spool needed it to fetch a package at all; before it, the package manager for a self-hosting language could not clone a repository.",
+  },
+  {
+    title: "Eleven hand-written sorts",
+    body: "sort ordered strings and nothing else, so six codebases wrote their own: four insertion sorts in spool, two in bobbin, one each in loom, weft and selvedge, and a merge sort over an index array in skein. 1.9.0's sort orders numbers too and takes a comparison, which is what a list of records needs -- nothing but the caller knows which field the order is on. It is a stable merge sort, and stability is correctness here rather than a nicety: skein assigns token ids from a sorted order, so an unstable sort would make a vocabulary built twice from one corpus differ.",
+  },
+  {
+    title: "A function defined twice was silently the second one",
+    body: "Neither checker said anything and the later definition won. That cost a real bug: spool replaced two of its insertion sorts by writing the new one-line versions above the old bodies, which stayed, so both files kept running the insertion sort through a passing test suite, a passing source gate and passing CI. There is no conditional compilation here, so a second definition of one name in one file is an edit that went wrong every time. Both checkers refuse it now, and the message names which definition runs.",
+  },
+];
+
 /* The two things 1.7 closed. Both were the top of docs/needs.md's open list,
    and both landed on the Go bootstrap and in the self-hosted compiler together,
    which is the check this project exists to be able to make. */
@@ -155,10 +173,10 @@ export default function Home() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/twill-mark.svg" alt="twill" width={44} height={44} />
               <a
-                href={`${GH}/releases/tag/v1.7.1`}
+                href={`${GH}/releases/tag/v1.9.0`}
                 className="chip chip-brand t-eyebrow transition-colors"
               >
-                v1.7.1
+                v1.9.0
               </a>
               <span className="chip t-eyebrow">MIT licensed</span>
               <span className="chip t-eyebrow">Early prototype</span>
@@ -268,6 +286,23 @@ export default function Home() {
 
         <Section
           n="05"
+          eyebrow="New in 1.8 and 1.9"
+          title="Three walls the ecosystem kept hitting"
+          lead="Every entry here came from docs/needs.md in a library written in twill, ranked by how many of them hit the same wall independently. Two are additions and the third is a refusal: the checkers now reject a name defined twice in one file, which is the only change in either release that can turn a program that ran into one that does not compile. Shipped as v1.8.0 and v1.9.0 in September 2026."
+        >
+          <Stagger className="hairline-grid grid sm:grid-cols-3">
+            {SINCE.map((c, i) => (
+              <StaggerItem key={c.title} className="bg-raised p-6">
+                <span className="t-eyebrow text-brand">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="mt-3 text-base font-semibold tracking-tight">{c.title}</h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-muted">{c.body}</p>
+              </StaggerItem>
+            ))}
+          </Stagger>
+        </Section>
+
+        <Section
+          n="06"
           eyebrow="New in 1.7"
           title="The two open questions: what a pattern is, and what can be generic"
           lead="1.5 made the ecosystem run and 1.6 stopped the language having pieces missing from the middle. This one closes the two entries docs/needs.md called the largest open language questions, and closes them on the Go bootstrap and in the self-hosted compiler together. Nothing written before changes meaning: both are additions at positions that were previously syntax errors. Shipped as v1.7.0 on 20 August 2026."
@@ -323,7 +358,7 @@ export default function Home() {
           </Reveal>
         </Section>
 
-        <Section n="06" eyebrow="Self-hosting" title="twill is being written in twill">
+        <Section n="07" eyebrow="Self-hosting" title="twill is being written in twill">
           <Reveal>
             <div className="rounded-xl border border-brand-fill/35 bg-raised p-6 sm:p-8">
               <p className="max-w-[72ch] text-sm leading-relaxed text-muted">
@@ -363,7 +398,7 @@ export default function Home() {
         </Section>
 
         <Section
-          n="07"
+          n="08"
           eyebrow="The ecosystem"
           title="Ten repositories, one language"
           lead="Everything downstream of the compiler is written in twill itself, which is the same experiment run again: a real program against the subset, with its own list of what is missing."
@@ -390,7 +425,7 @@ export default function Home() {
         </Section>
 
         <Section
-          n="08"
+          n="09"
           eyebrow="What is not done yet"
           title="This is a prototype, and some of it is deliberately left for later"
         >
@@ -403,7 +438,7 @@ export default function Home() {
           </Stagger>
         </Section>
 
-        <Section n="09" eyebrow="Read on" title="Documentation">
+        <Section n="10" eyebrow="Read on" title="Documentation">
           <Reveal>
             <Link
               href="/docs/"
