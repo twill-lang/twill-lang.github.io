@@ -397,6 +397,31 @@ async function auditPass({ dt, origin, urls, viewports, freeze, label }) {
 
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
+/**
+ * Close everything, and never let closing it decide the run.
+ *
+ * The profile directory has to outlive the browser: `kill` is a signal, not a
+ * join, and Chrome on Linux goes on writing its profile for a moment after it,
+ * so removing the directory immediately raced it and threw ENOTEMPTY. That
+ * failed a green run on the runner while the audit itself had found nothing,
+ * which is the sort of check nobody trusts twice. Waiting for the exit fixes the
+ * race; the try/catch means that even if some other machine finds a new way to
+ * hold a file open, a leftover temp directory cannot be mistaken for a defect on
+ * the page.
+ */
+async function shutDown(dt, chrome, server) {
+  try {
+    dt.close();
+    server.close();
+    const exited = new Promise((ok) => chrome.child.once("exit", ok));
+    chrome.child.kill();
+    await Promise.race([exited, sleep(5000)]);
+    rmSync(chrome.profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch (err) {
+    console.error(`hidden-audit: could not clean up after the browser (${err.message}). Not a failure.`);
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* The report                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -484,10 +509,7 @@ async function main() {
       await auditPass({ dt, origin, urls, viewports: [viewports[0]], freeze: false, label: "settled" }),
     );
   } finally {
-    dt.close();
-    chrome.child.kill();
-    server.close();
-    rmSync(chrome.profile, { recursive: true, force: true });
+    await shutDown(dt, chrome, server);
   }
 
   const failures = rows.reduce((n, r) => n + r.hidden.length, 0);
