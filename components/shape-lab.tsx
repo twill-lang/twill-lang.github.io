@@ -51,9 +51,15 @@ import { useEffect, useRef, useState } from "react";
  * browser delivers, and the reader has changed a dimension, which is the only
  * moment there is anything to animate. Nothing on first paint is entered, so
  * nothing already read is taken away either. Delete every animation from
- * globals.css and this figure is unchanged; freeze the timeline at any point
- * and it is unchanged; and the reduced-motion rule there already switches the
- * animation off for readers who ask.
+ * globals.css and this figure is unchanged; freeze a timeline that never
+ * advanced and it is unchanged; and the reduced-motion rule there already
+ * switches the animation off for readers who ask.
+ *
+ * The middle claim is exactly that narrow, and an earlier draft of this comment
+ * said "freeze the timeline at any point", which is false: a browser that paints
+ * runs `lab-arrive` for 400ms after a press, and freezing 250ms into it measures
+ * the line at opacity 0.94. Content is never withheld waiting for a frame, which
+ * is the property that matters. It is not that no frame ever changes anything.
  */
 
 const DIMS = [1, 2, 3, 4] as const;
