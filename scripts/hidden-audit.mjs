@@ -135,6 +135,11 @@ async function launch() {
       "--hide-scrollbars",
       "--no-first-run",
       "--disable-extensions",
+      // Crashpad is a second process that outlives the browser and holds the
+      // profile directory open, which is what stops the cleanup below removing
+      // it on Linux. Nothing here wants a crash report.
+      "--disable-crash-reporter",
+      "--disable-breakpad",
       "about:blank",
     ],
     { stdio: ["ignore", "ignore", "pipe"] },
@@ -423,8 +428,12 @@ async function shutDown(dt, chrome, server) {
     if (chrome.child.exitCode === null) chrome.child.kill();
     await Promise.race([exited, sleep(5000)]);
     rmSync(chrome.profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-  } catch (err) {
-    console.error(`hidden-audit: could not clean up after the browser (${err.message}). Not a failure.`);
+  } catch {
+    // Deliberately silent. What is left is a directory the operating system
+    // made and reclaims, and a check that prints a warning on every green run
+    // is a check people stop reading. The audit's answer is the exit status and
+    // the counts above it; nothing about the browser's temp files belongs in
+    // the same report.
   }
 }
 
