@@ -411,10 +411,16 @@ const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
  */
 async function shutDown(dt, chrome, server) {
   try {
+    const exited = new Promise((ok) => chrome.child.once("exit", ok));
+    // Ask the browser to close before signalling the process. A signal is not a
+    // join and it does not always reach the browser at all: the runner's
+    // /usr/bin/google-chrome is a wrapper script, so SIGTERM ended the wrapper
+    // while Chrome went on writing its profile, and the removal below hit
+    // ENOTEMPTY on a run that had found nothing wrong with the site.
+    await Promise.race([dt.send("Browser.close").catch(() => {}), sleep(3000)]);
     dt.close();
     server.close();
-    const exited = new Promise((ok) => chrome.child.once("exit", ok));
-    chrome.child.kill();
+    if (chrome.child.exitCode === null) chrome.child.kill();
     await Promise.race([exited, sleep(5000)]);
     rmSync(chrome.profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   } catch (err) {
