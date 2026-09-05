@@ -25,7 +25,10 @@ export type Sorts = {
   all: HandSort[];
   /** Repositories in descending count, so the sentence reads worst first. */
   byRepo: { repo: string; n: number }[];
-  /** Repositories holding the same function name more than once. */
+  /**
+   * Repositories holding the same function name more than once, most repeats
+   * first. The order is stated rather than inherited: see `handSorts`.
+   */
   repeated: { repo: string; fn: string; n: number }[];
 };
 
@@ -109,9 +112,18 @@ export async function handSorts(): Promise<Sorts> {
     if (!fns) pairs.set(s.repo, (fns = new Map()));
     fns.set(s.fn, (fns.get(s.fn) ?? 0) + 1);
   }
-  const repeated = [...pairs].flatMap(([repo, fns]) =>
-    [...fns].filter(([, n]) => n > 1).map(([fn, n]) => ({ repo, fn, n })),
-  );
+  const repeated = [...pairs]
+    .flatMap(([repo, fns]) => [...fns].filter(([, n]) => n > 1).map(([fn, n]) => ({ repo, fn, n })))
+    // Sorted, and this is not a nicety. Map iteration is insertion order, so a
+    // nested map walks repository-then-function while the flat map it replaced
+    // walked pair-first: on a list that interleaves repositories they come out
+    // in different orders, and app/page.tsx names `repeated[0]` in a sentence.
+    // Today's roadmap has one duplicate and cannot tell the difference, which
+    // is exactly the kind of agreement that stops holding on somebody else's
+    // commit. Ordering it here means the sentence picks the biggest duplicate
+    // because that is what it asked for, rather than because of which map the
+    // count happened to be kept in.
+    .sort((a, b) => b.n - a.n || a.repo.localeCompare(b.repo) || a.fn.localeCompare(b.fn));
 
   cached = { all, byRepo, repeated };
   return cached;

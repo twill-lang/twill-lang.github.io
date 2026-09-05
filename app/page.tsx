@@ -336,8 +336,8 @@ export default async function Home() {
     `their own. docs/roadmap.md counts ${word(sorts.all.length)} hand-written sorts and names ` +
     `every one: ${splitByRepo(sorts.byRepo)}` +
     (repeat
-      ? `; ${word(repeat.n)} of those are the same function, ${repeat.fn}, under the same name ` +
-        `in two files of the ${repeat.repo} repository`
+      ? `; and the same function, ${repeat.fn}, is written out under the same name in ` +
+        `${word(repeat.n)} files of the ${repeat.repo} repository`
       : "") +
     ". skein needed the comparison most, because it sorts an index array by comparing through a " +
     "second array the closure captures, and that was only expressible once function values landed " +
