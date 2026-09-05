@@ -37,6 +37,11 @@
  * opacity 0 there either, and it is the pass that would catch an entrance that
  * strands content on a working browser rather than a frozen one.
  *
+ * THE PRESSED PASS. Every button on the page is pressed once and the whole
+ * enumeration is repeated, because the defect this file was written to stop was
+ * reachable only through a click and a check that never clicks would have let it
+ * through a second time.
+ *
  * Usage: node scripts/hidden-audit.mjs [--json] [--out DIR]
  * Exit status is 1 if any element on any page is at opacity 0 in either pass.
  */
@@ -322,6 +327,39 @@ const NO_FRAMES = `
  * behaviour and reports how many animations were actually pinned, so a run
  * cannot come back clean because nothing was animating in the first place.
  */
+/**
+ * Press every button on the page once, in document order, and wait for the
+ * work each press schedules to be applied.
+ *
+ * Presses are wrapped individually: a copy button reaches for the clipboard,
+ * which a headless browser without permission refuses, and one rejected promise
+ * must not stop the walk. The count comes back so a page that reports zero
+ * presses cannot be mistaken for a page whose presses all held.
+ */
+const CLICK_EVERY_BUTTON = (freeze) => `(async () => {
+  const buttons = Array.from(document.querySelectorAll("button"));
+  let pressed = 0;
+  for (const b of buttons) {
+    try { b.click(); pressed++; } catch (e) {}
+  }
+  // A microtask turn plus a macrotask turn: React applies state in the first
+  // and effects settle in the second. No frame is requested, because the whole
+  // point of the frozen pass is that none is ever delivered.
+  await Promise.resolve();
+  await new Promise((r) => setTimeout(r, 0));
+  ${freeze
+    ? `// Frozen: nothing can be in flight, because no frame is ever delivered, so
+  // whatever is on screen now is what a reader of that browser gets forever.`
+    : `// Painting: the press starts an entrance, and an entrance caught halfway is
+  // not a hidden element. Wait for every animation the press scheduled to
+  // finish before measuring. The race is a guard against an infinite one.
+  await Promise.race([
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))),
+    new Promise((r) => setTimeout(r, 3000)),
+  ]);`}
+  return { pressed };
+})()`;
+
 const ENUMERATE = (freeze) => `
 (() => {
   const froze = ${freeze};
@@ -393,6 +431,33 @@ async function auditPass({ dt, origin, urls, viewports, freeze, label }) {
       );
       if (result.subtype === "error") throw new Error(`hidden-audit: ${result.description}`);
       rows.push({ pass: label, viewport: `${viewport.width}x${viewport.height}`, url, ...result.value });
+
+      // The state a page loads in is not the only state it has, and the defect
+      // that made this file necessary was reachable only by clicking: the shape
+      // lab's error line and its operand grid are put on screen by pressing a
+      // dimension. A check that only ever measures the loaded page would not
+      // have caught it, so every button on the page is pressed once and the
+      // enumeration is repeated. Buttons are pressed rather than a chosen
+      // selector for the same reason the enumeration walks every element.
+      const { result: clicked } = await dt.send(
+        "Runtime.evaluate",
+        { expression: CLICK_EVERY_BUTTON(freeze), returnByValue: true, awaitPromise: true },
+        sessionId,
+      );
+      if (clicked.subtype === "error") throw new Error(`hidden-audit: ${clicked.description}`);
+      const { result: after } = await dt.send(
+        "Runtime.evaluate",
+        { expression: ENUMERATE(freeze), returnByValue: true, awaitPromise: false },
+        sessionId,
+      );
+      if (after.subtype === "error") throw new Error(`hidden-audit: ${after.description}`);
+      rows.push({
+        pass: `${label}+pressed`,
+        viewport: `${viewport.width}x${viewport.height}`,
+        url,
+        pressed: clicked.value?.pressed ?? 0,
+        ...after.value,
+      });
     }
   }
 
@@ -470,14 +535,18 @@ function report(rows) {
 
     lines.push(`condition ${pass}`);
     lines.push(
-      pass === "frozen"
+      pass.startsWith("frozen")
         ? "  document.hidden true, requestAnimationFrame and IntersectionObserver never delivered,\n" +
-            "  animation playback rate 0, every animation held at currentTime 0"
-        : "  an ordinary painting browser, measured 1.6s after load",
+            "  animation playback rate 0, every animation held at currentTime 0" +
+            (pass.endsWith("+pressed") ? "\n  every button on the page pressed once" : "")
+        : "  an ordinary painting browser, measured 1.6s after load" +
+            (pass.endsWith("+pressed")
+              ? ",\n  every button pressed once and every animation awaited"
+              : ""),
     );
     lines.push(
       `  ${mine.length} page loads, ${elements} elements walked` +
-        (pass === "frozen"
+        (pass.startsWith("frozen")
           ? `, ${rafHeld} frame callbacks requested and 0 delivered, ${ioHeld} observer targets and 0 delivered, ${pinned} animations pinned at time 0`
           : ""),
     );

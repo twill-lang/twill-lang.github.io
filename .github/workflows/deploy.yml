@@ -52,6 +52,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # The same gate the pull request runs, on the path that actually publishes.
+      # A check that only guards the branch lets a scheduled build, a docs
+      # dispatch or a direct push to main ship a page whose content is at
+      # opacity 0, which is the exact defect this audit exists to stop.
+      # Chrome is preinstalled on the runner image, which is what the pull
+      # request check relies on too.
+      - run: npm run audit:hidden
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
