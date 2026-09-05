@@ -741,22 +741,39 @@ a.chip-brand:hover {
   .lab-ok { color: var(--accent); }
   .lab-bad { color: var(--warn); }
 
-  /* The entrance is a keyframe with no fill mode, which is the point: before it
-     starts and after it ends the element is at its ordinary style, so an
-     animation that never runs at all leaves the correct text on screen. That is
-     not true of a JS tween, which holds whatever value it was given first. */
+  /* These two entrances were written unconditionally, on the reasoning that a
+     keyframe with no fill mode applies nothing outside its active interval and
+     therefore leaves the correct text on screen if it never runs. The reasoning
+     is wrong, and it is worth writing down exactly how, because it is a natural
+     mistake to make twice.
+
+     `animation-fill-mode: none` omits the keyframes only OUTSIDE the active
+     interval. With `animation-delay: 0s` the active interval begins at time
+     zero, so time zero is INSIDE it and the 0% keyframe applies. An animation
+     that never advances is not an animation that never applied: it is one
+     pinned to its first keyframe, and the first keyframe here was `opacity: 0`.
+     Measured on the built export with the timeline frozen at 0, that left nine
+     `.tensor-cell` elements and the `.lab-line` holding the shape error at
+     opacity 0 permanently.
+
+     A delay would have hidden the defect rather than fixed it -- during the
+     delay the element is outside the active interval and shows at its resting
+     style, then blinks out when the interval opens -- so these follow the same
+     rule as every other entrance on the site instead. The animation lives under
+     `.is-entering`, and components/shape-lab.tsx adds that class only after a
+     `requestAnimationFrame` callback has been delivered. No frames, no class,
+     no animation, nothing hidden. */
   .lab-line {
     display: block;
+  }
+  .lab-line.is-entering {
     animation: lab-arrive 0.26s cubic-bezier(0.22, 1, 0.36, 1);
   }
   @keyframes lab-arrive {
     from { opacity: 0; transform: translateY(4px); }
   }
 
-  /* No delay and no fill mode, for the same reason: a per-cell stagger needs
-     `backwards` to hold the cell hidden through its delay, and a hidden cell is
-     a cell that stays hidden if the animation never advances. */
-  .tensor-cell {
+  .tensor-cell.is-entering {
     animation: cell-arrive 0.24s cubic-bezier(0.22, 1, 0.36, 1);
   }
   @keyframes cell-arrive {

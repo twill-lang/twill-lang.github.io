@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * The shape checker, made of the site instead of described by it.
@@ -27,10 +27,33 @@ import { useState } from "react";
  * wait on an animation frame, and a page loaded in a background tab gets no
  * animation frames at all: pressing a dimension changed the signature and the
  * drawing and left the terminal showing the previous program's error, which is
- * the one thing on this page that must never be wrong. Everything here now
- * renders its final state directly and the animation is a CSS keyframe on top of
- * it, so an animation that never runs costs a fade and nothing else. The
- * reduced-motion rule in globals.css already switches those off.
+ * the one thing on this page that must never be wrong. Everything here renders
+ * its final state directly and the animation is a CSS keyframe on top of it.
+ *
+ * AND WHY THE KEYFRAME IS NOT ENOUGH ON ITS OWN. The revision that introduced
+ * this file said "an animation that never runs costs a fade and nothing else",
+ * on the grounds that a keyframe with no fill mode applies nothing outside its
+ * active interval. That was measured and it is false. `animation-fill-mode:
+ * none` omits the keyframes only OUTSIDE the active interval, and with no delay
+ * the active interval starts at time zero, so time zero is inside it and the 0%
+ * keyframe applies. A timeline that never advances is therefore pinned to the
+ * 0% keyframe rather than released from it. On the built export with the
+ * timeline frozen at 0, this figure's own entrance left nine `.tensor-cell`
+ * elements and the `.lab-line` carrying the error message at opacity 0
+ * permanently: the section whose whole point is the refusal rendered its
+ * heading and lost the refusal.
+ *
+ * So the entrance follows the site's one rule for motion, the one
+ * components/motion.tsx is built on: THE HIDDEN STATE IS ONLY EVER APPLIED FROM
+ * INSIDE AN ANIMATION FRAME. The keyframes live under `.is-entering`, and this
+ * component adds that class only when both halves of the frame gate are true --
+ * a `requestAnimationFrame` callback has been delivered, which no frameless
+ * browser delivers, and the reader has changed a dimension, which is the only
+ * moment there is anything to animate. Nothing on first paint is entered, so
+ * nothing already read is taken away either. Delete every animation from
+ * globals.css and this figure is unchanged; freeze the timeline at any point
+ * and it is unchanged; and the reduced-motion rule there already switches the
+ * animation off for readers who ask.
  */
 
 const DIMS = [1, 2, 3, 4] as const;
@@ -99,14 +122,28 @@ function Dim({
  * `[3, k] @ [n]` is a picture before it is a rule: two blocks whose touching
  * edges either have the same number of cells or do not. The seam between them
  * carries the whole judgement, so it is the only thing coloured.
+ *
+ * `entering` is the frame gate described at the top of this file. While it is
+ * false, which is its value on every first paint and its value forever on a
+ * browser that never draws, no cell carries an animation at all. The three grids
+ * are keyed by the shape so that a change remounts them and replays the
+ * entrance; without the key React reuses the cells it already has and only the
+ * cells a larger shape adds would move.
  */
-function Operands({ k, n, ok }: { k: number; n: number; ok: boolean }) {
+function Operands({ k, n, ok, entering }: { k: number; n: number; ok: boolean; entering: boolean }) {
+  const cell = entering ? "tensor-cell is-entering" : "tensor-cell";
+  const shape = `${k}-${n}-${ok}`;
+
   return (
     <div className="tensor-figure" aria-hidden>
       <figure className="tensor-block">
-        <div className="tensor-grid" style={{ gridTemplateColumns: `repeat(${k}, 1fr)` }}>
+        <div
+          key={shape}
+          className="tensor-grid"
+          style={{ gridTemplateColumns: `repeat(${k}, 1fr)` }}
+        >
           {Array.from({ length: 3 * k }, (_, i) => (
-            <span key={i} className="tensor-cell" />
+            <span key={i} className={cell} />
           ))}
         </div>
         <figcaption className="tensor-caption">
@@ -122,9 +159,9 @@ function Operands({ k, n, ok }: { k: number; n: number; ok: boolean }) {
       </div>
 
       <figure className="tensor-block">
-        <div className="tensor-grid" style={{ gridTemplateColumns: "1fr" }}>
+        <div key={shape} className="tensor-grid" style={{ gridTemplateColumns: "1fr" }}>
           {Array.from({ length: n }, (_, i) => (
-            <span key={i} className="tensor-cell" />
+            <span key={i} className={cell} />
           ))}
         </div>
         <figcaption className="tensor-caption">
@@ -137,10 +174,10 @@ function Operands({ k, n, ok }: { k: number; n: number; ok: boolean }) {
       </div>
 
       <figure className="tensor-block">
-        <div className="tensor-grid" style={{ gridTemplateColumns: "1fr" }}>
+        <div key={shape} className="tensor-grid" style={{ gridTemplateColumns: "1fr" }}>
           {ok ? (
             Array.from({ length: 3 }, (_, i) => (
-              <span key={i} className="tensor-cell is-result" />
+              <span key={i} className={`${cell} is-result`} />
             ))
           ) : (
             <span className="tensor-void">refused</span>
@@ -168,6 +205,27 @@ export function ShapeLab() {
   const [k, setK] = useState(2);
   const [n, setN] = useState(3);
 
+  // Half one of the frame gate: has this browser drawn anything? A frameless
+  // browser never runs this callback, so `drew` stays false there for the life
+  // of the page and no element in this figure ever carries an animation.
+  const drew = useRef(false);
+  useEffect(() => {
+    if (typeof requestAnimationFrame !== "function") return;
+    const id = requestAnimationFrame(() => {
+      drew.current = true;
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  // Half two: has the reader changed anything? Content on screen since first
+  // paint has already been read, and animating it would be the blink this site
+  // removed everywhere else rather than an entrance.
+  const [entering, setEntering] = useState(false);
+  const change = (set: (v: number) => void) => (value: number) => {
+    set(value);
+    if (drew.current) setEntering(true);
+  };
+
   const { ok, lines } = checkOutput(k, n);
   const tone = ok ? "ok" : "bad";
 
@@ -184,15 +242,17 @@ export function ShapeLab() {
           <code className="font-mono">
             <span className="tok-kw">fn</span> <span className="tok-fn">matvec</span>(A: [
             <span className="tok-num">3</span>,{" "}
-            <Dim value={k} onChange={setK} label="the inner dimension of A" tone={tone} />
-            ], x: [<Dim value={n} onChange={setN} label="the length of x" tone={tone} />]) {"->"} [
+            <Dim value={k} onChange={change(setK)} label="the inner dimension of A" tone={tone} />
+            ], x: [
+            <Dim value={n} onChange={change(setN)} label="the length of x" tone={tone} />
+            ]) {"->"} [
             <span className="tok-num">3</span>] {"{"}
             {"\n  A @ x\n"}
             {"}"}
           </code>
         </pre>
 
-        <Operands k={k} n={n} ok={ok} />
+        <Operands k={k} n={n} ok={ok} entering={entering} />
       </div>
 
       <div className="lab-term">
@@ -211,8 +271,12 @@ export function ShapeLab() {
                 gets a button whose only effect is somewhere else on the page. */}
             <span aria-live="polite">
               {/* The key remounts this on every change, which replays the CSS
-                  entrance. The text itself is never waiting on it. */}
-              <span className="lab-line" key={lines.join("|")}>
+                  entrance. The text itself is never waiting on it, and until
+                  the frame gate opens there is no entrance to replay. */}
+              <span
+                className={entering ? "lab-line is-entering" : "lab-line"}
+                key={lines.join("|")}
+              >
                 <span className={ok ? "lab-ok" : "lab-bad"}>{lines[0]}</span>
                 {lines[1] ? `\n${lines[1]}` : ""}
               </span>

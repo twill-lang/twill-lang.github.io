@@ -50,10 +50,25 @@ have, so if you change one, run it.
 
 ## Checks
 
-`.github/workflows/ci.yml` runs `npm run typecheck` and `npm run build` on every
-pull request. Because the build fetches the docs and the changelog, it is also
-the check that every published doc still exists upstream and that `CHANGELOG.md`
-is still shaped the way `lib/releases.ts` parses.
+`.github/workflows/ci.yml` runs `npm run typecheck`, `npm run build` and
+`npm run audit:hidden` on every pull request. Because the build fetches the docs
+and the changelog, it is also the check that every published doc still exists
+upstream and that `CHANGELOG.md` is still shaped the way `lib/releases.ts`
+parses.
+
+`npm run audit:hidden` is the one that guards the site's motion.
+`scripts/hidden-audit.mjs` opens every built page in Chrome under the condition
+this site has twice got wrong -- the document hidden, `requestAnimationFrame`
+and `IntersectionObserver` never delivered, the animation timeline pinned at
+zero -- walks every element on the page and fails if any of them computes to
+opacity 0. It needs a Chrome or Chromium, which it finds on the runner, at
+`CHROME`, or in a local Playwright download; it has no npm dependency of its own.
+
+The rule it enforces is worth stating in words too, because it is what makes the
+check pass rather than the check being what makes it true: **the resting state
+of every element on this site is visible, and a hidden state is only ever
+applied from inside an animation frame.** A page that never gets a frame never
+reaches one.
 
 `.github/workflows/deploy.yml` builds and publishes on a push to main, on a
 `docs-changed` dispatch from the twill repo, and daily.

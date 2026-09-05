@@ -51,3 +51,18 @@ jobs:
         # a red run on somebody else's traffic.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # The claim this site kept making about itself, as a number instead of an
+      # adjective. It loads every built page in Chrome with the document hidden,
+      # requestAnimationFrame and IntersectionObserver never delivered and the
+      # animation timeline pinned at zero, walks every element, and fails if any
+      # of them computes to opacity 0. Twice now a revision has shipped saying
+      # "nothing is hidden at rest" while the home page lost the shape error
+      # message under exactly those conditions, which is the one sentence on the
+      # site that cannot be missing.
+      #
+      # Chrome is preinstalled on the GitHub-hosted runner images; the script
+      # also takes a CHROME environment variable and finds a local Playwright
+      # download, and it exits 2 with the list of paths it tried rather than
+      # passing quietly when there is no browser to check with.
+      - run: npm run audit:hidden
