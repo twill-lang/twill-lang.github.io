@@ -43,6 +43,22 @@ jobs:
       # page, so a network problem fails the build here instead of publishing a
       # doc with its middle missing.
       - run: npm run build
+        # lib/corpus.ts reads the compiler repository's git tree through
+        # api.github.com, which is sixty requests an hour per IP without a
+        # token and shared with every other job on the runner. The token the
+        # workflow already has raises that to five thousand; the build throws
+        # rather than guessing at a number, so the alternative to passing it is
+        # a red run on somebody else's traffic.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # The same gate the pull request runs, on the path that actually publishes.
+      # A check that only guards the branch lets a scheduled build, a docs
+      # dispatch or a direct push to main ship a page whose content is at
+      # opacity 0, which is the exact defect this audit exists to stop.
+      # Chrome is preinstalled on the runner image, which is what the pull
+      # request check relies on too.
+      - run: npm run audit:hidden
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

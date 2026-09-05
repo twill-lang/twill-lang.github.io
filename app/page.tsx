@@ -1,48 +1,91 @@
 import Link from "next/link";
 import { Code, Term } from "@/components/code";
+import { CopyButton } from "@/components/copy";
 import { Enter, Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Footer, Nav } from "@/components/chrome";
+import { ShapeLab } from "@/components/shape-lab";
+import { BootstrapChain } from "@/components/chain";
 import { ArrowRight, ArrowUpRight, Book, Download } from "@/components/icons";
+import { latest, longDate, releases, unreleased } from "@/lib/releases";
+import { handSorts, word } from "@/lib/roadmap";
 
 const GH = "https://github.com/twill-lang/twill";
+const INSTALL = "go install github.com/twill-lang/twill/cmd/twill@latest";
 
+/* ---------------------------------------------------------------------------
+ * Every listing below was run through the twill binary before it was pasted
+ * here, and every terminal block is that run's output rather than a
+ * reconstruction of it. A sample that does not compile is the worst bug a
+ * language's website can have, and three of the ones this page used to carry
+ * were fragments that referred to types they never declared.
+ *
+ * The two binaries used, and why there are two: the tagged v1.9.0 build for
+ * everything a visitor can download today, and a build of `main` for the
+ * duplicate-definition figure, which is the one thing on this page that has
+ * merged and not yet shipped. The figure says so, in the figure.
+ * ------------------------------------------------------------------------- */
+
+/* examples/montecarlo_option.tw, whole. The previous version of this listing
+   was an abridgement: the prints were cut, so the program shown produced
+   none of the output beside it and a reader who copied it got nothing. The
+   only backslash-escape below is the one backtick in the file's own comment,
+   which a template literal cannot carry raw. */
 const MONTE_CARLO = `
-seed(42)
-let Z = randn(200000)                              # fixed shocks: the price is smooth in its inputs
+# montecarlo_option.tw: price a European call by Monte Carlo, and get its
+# Greeks (delta, vega) by differentiating the pricer. No finite differences,
+# no extra libraries. \`grad\` does it.
+#
+# This is the finance beachhead: the payoff is parallel and simple, the result
+# is reproducible (seeded RNG), and the sensitivities come straight from autodiff,
+# something Python needs JAX or bumping-and-revaluing to match.
 
+seed(42)
+
+# Fix the standard-normal shocks once, so the price is a smooth, differentiable
+# function of the inputs (common random numbers) and fully reproducible.
+let paths = 200000
+let Z = randn(paths)
+
+# Terminal-value pricer for a call under geometric Brownian motion.
 fn call_price(S0, K, r, sigma, T) {
   let drift = (r - 0.5 * sigma * sigma) * T
   let ST = S0 * exp(drift + sigma * sqrt(T) * Z)   # simulated terminal prices
-  exp(-r * T) * mean(relu(ST - K))                 # discounted expected payoff
+  let payoff = relu(ST - K)                        # max(ST - K, 0)
+  exp(-r * T) * mean(payoff)                       # discounted expected payoff
 }
 
-let price = call_price(100.0, 100.0, 0.05, 0.2, 1.0)
-let delta = grad(fn(s) = call_price(s, 100.0, 0.05, 0.2, 1.0))(100.0)
-let vega  = grad(fn(v) = call_price(100.0, 100.0, 0.05, v, 1.0))(0.2)
+let S0 = 100.0
+let K = 100.0
+let r = 0.05
+let sigma = 0.2
+let T = 1.0
+
+let price = call_price(S0, K, r, sigma, T)
+
+# Greeks by autodiff: delta = dPrice/dS0, vega = dPrice/dSigma.
+let delta = grad(fn(s) = call_price(s, K, r, sigma, T))(S0)
+let vega = grad(fn(v) = call_price(S0, K, r, v, T))(sigma)
+
+print("European call, S0=100 K=100 r=5% vol=20% T=1y, MC paths:", paths)
+print("  price =", price, " (Black-Scholes 10.4506)")
+print("  delta =", delta, " (Black-Scholes 0.6368)")
+print("  vega  =", vega, "  (Black-Scholes 37.524)")
 `;
 
 const MONTE_CARLO_OUT = `
-$ twill examples/montecarlo_option.tw
+$ twill run examples/montecarlo_option.tw
 European call, S0=100 K=100 r=5% vol=20% T=1y, MC paths: 200000
   price = 10.442696  (Black-Scholes 10.4506)
   delta = 0.636269  (Black-Scholes 0.6368)
   vega  = 37.488476   (Black-Scholes 37.524)
 `;
 
-const SHAPE_SIG = `
-fn matvec(A: [3, 2], x: [2]) -> [3] {
-  A @ x
-}
-`;
-
-const SHAPE_OUT = `
-$ twill check model.tw
-model.tw:6: shape error: argument 2 ("x") axis 0 is 3 but the signature expects 2
-  6 | let out = matvec(A, [1.0, 2.0, 3.0])
-model.tw:2: shape error: shape mismatch in @: [3, 2] @ [3] (inner 2 != 3)
-  2 |   A @ x
-`;
-
+/* The refusal is IN the listing now. This pair used to show a seven-line
+   notional.tw with no error in it beside `$ twill check bad.tw` reporting a
+   fault on a line of a file the page never showed, which is the one thing a
+   figure like this must not do: the reader cannot check the claim against
+   anything, and the line number points at nothing. Same program, one more
+   statement, and the output below is that file's own. */
 const UNITS = `
 unit USD
 unit share
@@ -50,11 +93,27 @@ unit share
 fn notional(px: USD/share, qty: share) -> USD { px * qty }
 
 let price: USD/share = 150.0
-let value = notional(price, 200.0)   # USD
+let qty: share = 200.0
+let value = notional(price, qty)   # USD
+let bad = price + qty              # USD/share plus share
 `;
 
-const PATTERNS_TW = `
+const UNITS_OUT = `
+$ twill check notional.tw
+notional.tw:9: shape error: unit mismatch: USD*share^-1 + share
+  9 | let bad = price + qty              # USD/share plus share
+`;
+
+/* Same repair as notional.tw above. The listing was a clean expr.tw beside
+   `$ twill check load.tw` reporting a non-exhaustive match on an Opt and a
+   Box[I64]/Box[Str] mismatch, neither of which appeared anywhere on the page.
+   The two faults are in this file now, one for each thing the section is
+   about: a match that does not cover its enum, and a generic instantiated
+   with the wrong argument. */
+const PATTERNS = `
 mode systems
+
+enum Expr { Num(F64), Neg(Expr), Mul(Pair[Expr, Expr]) }
 
 struct Pair[A, B] { left: A, right: B }      # a declaration of your own, generic
 
@@ -67,65 +126,111 @@ fn describe(e: Expr) -> Str {
     other => "something else",                    # a catch-all with a name
   }
 }
+
+fn depth(e: Expr) -> I64 {
+  match e {                                       # no catch-all, and two cases short
+    Num(v) => 0,
+  }
+}
+
+let mixed: Pair[F64, F64] = Pair { left: 1.0, right: "two" }
 `;
 
-const MATCH_OUT = `
-$ twill check load.tw
-load.tw:14: shape error: match on Opt is not exhaustive: missing Some(Err)
- 14 |   match o {
-load.tw:31: shape error: "b" is declared Box[I64] but the value is Box[Str]
+const PATTERNS_OUT = `
+$ twill check expr.tw
+expr.tw:18: shape error: match on Expr is not exhaustive: missing Neg, Mul
+  18 |   match e {                                       # no catch-all, and two cases short
+expr.tw:23: shape error: "mixed" is declared Pair[F64, F64] but the value is Pair[F64, Str]
+  23 | let mixed: Pair[F64, F64] = Pair { left: 1.0, right: "two" }
 `;
 
-/* What 1.8 and 1.9 closed. Both releases came out of the same place the 1.7
-   entries did: docs/needs.md in each satellite, ranked by how many independently
-   written codebases hit the same wall. */
-const SINCE = [
-  {
-    title: "A program could not start another program",
-    body: "run(program, argv, dir) -> Res[Str, Str], in 1.8.0. It takes an argument vector and never a shell, so a filename with a space in it is a filename rather than two, and TWILL_NO_EXEC refuses every call for a caller that wants the guarantee in writing. spool needed it to fetch a package at all; before it, the package manager for a self-hosting language could not clone a repository.",
-  },
-  {
-    title: "Eleven hand-written sorts",
-    body: "sort ordered strings and nothing else, so six codebases wrote their own: four insertion sorts in spool, two in bobbin, one each in loom, weft and selvedge, and a merge sort over an index array in skein. 1.9.0's sort orders numbers too and takes a comparison, which is what a list of records needs -- nothing but the caller knows which field the order is on. It is a stable merge sort, and stability is correctness here rather than a nicety: skein assigns token ids from a sorted order, so an unstable sort would make a vocabulary built twice from one corpus differ.",
-  },
-  {
-    title: "A function defined twice was silently the second one",
-    body: "Neither checker said anything and the later definition won. That cost a real bug: spool replaced two of its insertion sorts by writing the new one-line versions above the old bodies, which stayed, so both files kept running the insertion sort through a passing test suite, a passing source gate and passing CI. There is no conditional compilation here, so a second definition of one name in one file is an edit that went wrong every time. Both checkers refuse it now, and the message names which definition runs.",
-  },
-];
+const SORT = `
+mode systems
 
-/* The two things 1.7 closed. Both were the top of docs/needs.md's open list,
-   and both landed on the Go bootstrap and in the self-hosted compiler together,
-   which is the check this project exists to be able to make. */
-const COMPLETENESS = [
-  {
-    title: "A pattern was a case name and one binder",
-    body: "It is a tree now. Ok(Some(v)) takes a value apart in one place instead of a second match inside the arm; 3, \"hi\" and true match by ordinary equality, so a match over numbers needs no enum written around it; and Some(n) if n > 0 says the thing a shape cannot. A lower-case name binds rather than naming a case, so a catch-all can say what it caught -- and since every variant in the language and its libraries is upper-case initial, nothing written before changes meaning.",
-  },
-  {
-    title: "Exhaustiveness got more precise, not just still true",
-    body: "It recurses: Some(Ok(v)), Some(Err(e)) and None cover an Opt[Res[..]], and dropping one names the value that gets through rather than passing. The rule underneath is that an arm counts only when nothing but the value's shape decides whether it runs -- so a guarded arm and a narrower nested one prove nothing, and Some(v) if v > 3 together with None is reported as incomplete. That is stricter than 1.6 was, and correct.",
-  },
-  {
-    title: "Only four types could be generic",
-    body: "Arr, Dict, Opt and Res were generic and checked; a declaration in a twill program could not be, and [ after the name was a syntax error. struct Box[T], enum Tree[T] and fn first[T](xs: Arr[T]) -> T now parse, check and run. A Box[I64]'s field is an I64 rather than an unknown, substitution goes under the constructors a parameter is written inside, and a Box[Str] is refused where a Box[I64] was declared.",
-  },
-  {
-    title: "And no monomorphization, which turned out not to be needed",
-    body: "The original plan assumed it. The runtime is a tree walker over dynamically typed values, so the same code runs whatever T is and specialising per instantiation would produce identical copies. The parameters have to reach exactly one place -- the types the checker judges against -- so generics here are substitution in about eighty lines per implementation, and the termination question monomorphization would have raised does not arise.",
-  },
-];
+struct Row { name: Str, n: I64 }
 
-/* The tooling half. Shorter entries, so a compact list rather than cards. */
-const TOOLING = [
-  ["twill lsp", "A language server: diagnostics republished as you type, formatting, and hover reporting the inferred type and shape. Hover is the one worth having -- in a tensor-first language the question you actually have is what shape something is, and it is answered from the checker without running anything. No completion, deliberately, until the semantic information is reliable enough to drive one."],
-  ["std/gradcheck", "A gradient checker. There is nothing about a wrong gradient that looks wrong: the model does not crash, it trains to a worse loss, and the search starts at the learning rate. Compares against a central difference quotient, deliberately not built out of grad."],
-  ["twill doctor", "Answers the question a bug report starts with, and finds what is wrong quietly: a stale binary earlier on PATH, a TWILL_STD pointing at last month's checkout, a standard library that will not load."],
-  [":type and :shape", "Answer from the checker in the REPL without running anything, which for a tensor-first language is the most useful question there is. :shape randn(4096, 4096) @ w costs nothing here and a gigabyte there."],
-  ["The filesystem, finished", "path_exists, mkdir_all, remove_all, rename, mtime, temp_dir, cwd and the seven path operations. A program could read a file and write one, and could not make a directory to write into or clean up after itself. Plus read_file_at, a ranged read: read_file returns the whole file, so a reader following a growing log read all of it again on every poll, and one processing a file larger than memory could not run at all."],
-  ["mono_ns()", "A clock that only goes forward. The wall clock steps when the system time is corrected, so a duration measured across one is wrong by the correction -- for a benchmark, the difference between a number and a fiction."],
-  ["twill test --filter", "Runs the suites whose path contains a substring, alongside twill --version --verbose printing the build."],
-];
+fn main() {
+  let xs: Arr[I64] = [3, 1, 2]
+  print(sort(xs))                        # ascending, by the elements' own order
+  print(sort(xs, true))                  # descending
+
+  let rows: Arr[Row] = [
+    Row { name: "c", n: 3 },
+    Row { name: "a", n: 1 },
+    Row { name: "b", n: 2 },
+  ]
+  for r in sort(rows, fn(a, b) = a.n < b.n) {   # by a comparison: does a come first?
+    print(r.name, r.n)
+  }
+}
+`;
+
+const SORT_OUT = `
+$ twill run sort_demo.tw
+[1, 2, 3]
+[3, 2, 1]
+a 1
+b 2
+c 3
+`;
+
+/* `--abbrev-ref HEAD` rather than `rev-parse --short HEAD`, which is what this
+   figure ran before. The output of the short form is a commit hash, so the
+   terminal block carried a hash that was current on the day it was pasted and
+   is wrong the moment the compiler repository takes another commit. A branch
+   name is the same demonstration and anybody can reproduce it. */
+const RUN = `
+mode systems
+
+fn main() {
+  let argv: Arr[Str] = ["rev-parse", "--abbrev-ref", "HEAD"]
+  match run("git", argv, ".") {          # no shell: argv stays a vector
+    Ok(branch) => print("checkout is on", branch),
+    Err(e) => print("git said:", e),
+  }
+}
+`;
+
+const RUN_OUT = `
+$ twill run head.tw
+checkout is on main
+
+$ TWILL_NO_EXEC=1 twill run head.tw
+git said: run: refused to start "git" because TWILL_NO_EXEC is set
+`;
+
+const DUPLICATE = `
+mode systems
+
+fn sort_deps(xs: Arr[Str]) -> Arr[Str] {
+  sort(xs)                     # the one-line replacement, written above
+}
+
+fn main() {
+  let deps: Arr[Str] = ["weft", "bobbin", "loom"]
+  for d in sort_deps(deps) { print(d) }
+}
+
+fn sort_deps(xs: Arr[Str]) -> Arr[Str] {
+  let out = xs                 # the old insertion sort, still the one that runs
+  out
+}
+`;
+
+/* The only annotation on this page that is not the binary's own output: the two
+   runs are the same command against two builds, so the block has to say which
+   build gave which answer. The release half of that label is the last version
+   number that was typed into this file, in a commit whose point was that no
+   number here is typed in. It comes off the changelog now, like the chip and
+   the figure labels, so the day this change ships the label moves with it. */
+const duplicateOut = (version: string) => `
+$ twill check lockfile.tw            # v${version}, the release you can download
+lockfile.tw: no shape problems found
+
+$ twill check lockfile.tw            # main
+lockfile.tw:12: shape error: sort_deps is already defined on line 3; the later definition is the one that runs, so the earlier one is dead. Delete whichever is stale, or rename one.
+  12 | fn sort_deps(xs: Arr[Str]) -> Arr[Str] {
+`;
 
 const PILLARS = [
   {
@@ -142,8 +247,41 @@ const PILLARS = [
   },
 ];
 
+/* The language as it stands, not as a release note. The previous version of
+   this section was headed "New in 1.7", which is a heading that is wrong from
+   the day 1.8 ships and has to be rewritten every time. What a pattern is and
+   what can be generic are facts about the language; the release they arrived in
+   belongs in the release list, which is generated. */
+const LANGUAGE = [
+  {
+    title: "A pattern is a tree",
+    body: "Ok(Some(v)) takes a value apart in one place instead of a second match inside the arm; 3, \"hi\" and true match by ordinary equality, so a match over numbers needs no enum written around it; and Some(n) if n > 0 says the thing a shape cannot. A lower-case name binds rather than naming a case, so a catch-all can say what it caught.",
+  },
+  {
+    title: "Exhaustiveness recurses",
+    body: "Some(Ok(v)), Some(Err(e)) and None cover an Opt[Res[..]], and dropping one names the value that gets through rather than passing. An arm counts only when nothing but the value's shape decides whether it runs, so a guarded arm and a narrower nested one prove nothing, and Some(v) if v > 3 together with None is reported as incomplete.",
+  },
+  {
+    title: "Anything can be generic",
+    body: "struct Box[T], enum Tree[T] and fn first[T](xs: Arr[T]) -> T parse, check and run alongside the built-in Arr, Dict, Opt and Res. A Box[I64]'s field is an I64 rather than an unknown, substitution goes under the constructors a parameter is written inside, and a Box[Str] is refused where a Box[I64] was declared.",
+  },
+  {
+    title: "And no monomorphization, which turned out not to be needed",
+    body: "The original plan assumed it. The runtime is a tree walker over dynamically typed values, so the same code runs whatever T is and specialising per instantiation would produce identical copies. The parameters have to reach exactly one place, the types the checker judges against, so generics here are substitution in about eighty lines per implementation.",
+  },
+];
+
+const TOOLING: [string, string][] = [
+  ["twill lsp", "A language server: diagnostics republished as you type, formatting, and hover reporting the inferred type and shape. Hover is the one worth having, because in a tensor-first language the question you actually have is what shape something is, and it is answered from the checker without running anything."],
+  ["std/gradcheck", "A gradient checker. There is nothing about a wrong gradient that looks wrong: the model does not crash, it trains to a worse loss, and the search starts at the learning rate. Compares against a central difference quotient, deliberately not built out of grad."],
+  ["twill doctor", "Answers the question a bug report starts with, and finds what is wrong quietly: a stale binary earlier on PATH, a TWILL_STD pointing at last month's checkout, a standard library that will not load."],
+  [":type and :shape", "Answer from the checker in the REPL without running anything. :shape randn(4096, 4096) @ w costs nothing here and a gigabyte there."],
+  ["The filesystem, finished", "path_exists, mkdir_all, remove_all, rename, mtime, temp_dir, cwd and the seven path operations. Plus read_file_at, a ranged read: read_file returns the whole file, so a reader following a growing log read all of it again on every poll."],
+  ["mono_ns()", "A clock that only goes forward. The wall clock steps when the system time is corrected, so a duration measured across one is wrong by the correction, which for a benchmark is the difference between a number and a fiction."],
+];
+
 const ECOSYSTEM = [
-  { name: "twill", blurb: "The language and the reference implementation.", href: `${GH}` },
+  { name: "twill", blurb: "The language, the Go bootstrap, and the compiler written in twill.", href: `${GH}` },
   { name: "spool", blurb: "The package manager, written in twill.", href: "https://github.com/twill-lang/spool" },
   { name: "loom", blurb: "The build and workspace tooling.", href: "https://github.com/twill-lang/loom" },
   { name: "warp", blurb: "Data pipelines and dataset loaders.", href: "https://github.com/twill-lang/warp" },
@@ -158,106 +296,169 @@ const ECOSYSTEM = [
 const NOT_DONE = [
   "It is interpreted. Tensor ops loop in Go, and there is no vectorized or GPU backend.",
   "Autodiff is reverse-mode and first-order. A gradient inside a gradient is refused wherever it is written, rather than answered with zeros; hessian and jacobian nest legitimately.",
-  "The shape checker is best-effort, not a full type system. The systems-mode types are checked as of 1.6, but only where a mismatch is certain: an unresolved type is left alone rather than treated as an error.",
-  "The self-hosted compiler runs on the Go bootstrap, not yet as its own Go-free binary.",
+  "The shape checker is best-effort, not a full type system. It flags a mismatch only where one is certain: code whose shapes depend on runtime values is left alone rather than guessed at.",
+  "The self-hosted compiler runs on the Go bootstrap. The Go-free binary, and the triple build that would prove it, are the stage after this one.",
 ];
 
-export default function Home() {
+/** `four` -> `Four`, for a count that opens a sentence or a heading. */
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** "four in spool, three in twill itself, two in bobbin, one in loom and one in weft" */
+function splitByRepo(byRepo: { repo: string; n: number }[]): string {
+  const parts = byRepo.map(
+    ({ repo, n }) => `${word(n)} in ${repo === "twill" ? "twill itself" : repo}`,
+  );
+  if (parts.length < 2) return parts.join("");
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+export default async function Home() {
+  const [newest, pending, all, sorts] = await Promise.all([
+    latest(),
+    unreleased(),
+    releases(),
+    handSorts(),
+  ]);
+  const recent = all.filter((r) => r.version).slice(0, 3);
+
+  /* Figure A's whole argument is a count of other people's source, and it was
+     typed in here: "eleven hand-written sorts ... four in spool, one in loom,
+     two in bobbin, one in weft, and three in twill itself, two of which are the
+     same function under the same name". The sentence cited docs/roadmap.md for
+     all of it and did not read it. lib/roadmap.ts reads it now, and every number
+     in the paragraph below is counted off that document's own list of sorts when
+     this page is built. */
+  const repeat = sorts.repeated[0];
+  const sortsBody =
+    `sort ordered strings and nothing else, so ${word(sorts.byRepo.length)} codebases wrote ` +
+    `their own. docs/roadmap.md counts ${word(sorts.all.length)} hand-written sorts and names ` +
+    `every one: ${splitByRepo(sorts.byRepo)}` +
+    (repeat
+      ? `; and the same function, ${repeat.fn}, is written out under the same name in ` +
+        `${word(repeat.n)} files of the ${repeat.repo} repository`
+      : "") +
+    ". skein needed the comparison most, because it sorts an index array by comparing through a " +
+    "second array the closure captures, and that was only expressible once function values landed " +
+    "in 1.7. Every form is stable, which here is correctness rather than a nicety: skein assigns " +
+    "token ids from a sorted vocabulary, so an unstable sort would make the ids a function of the " +
+    "sort's internals rather than of the corpus.";
+
+  // Figure C is about one specific unreleased change, so it is shown only while
+  // the changelog still has that change pending. On the day it ships the figure
+  // goes away on its own rather than sitting there saying "on main" about work
+  // that is now in a tag, and a DIFFERENT unreleased change does not inherit a
+  // figure written about this one.
+  const duplicateRefusalPending = Boolean(
+    pending?.entries.some((e) => /defined twice/i.test(e)),
+  );
+
   return (
     <>
       <Nav />
       <main className="mx-auto max-w-6xl px-5 sm:px-8">
-        <section className="pb-20 pt-16 sm:pb-28 sm:pt-24">
+        <section className="pb-20 pt-14 sm:pb-28 sm:pt-20">
           <Enter>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <div className="flex flex-wrap items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/twill-mark.svg" alt="twill" width={44} height={44} />
+              {/* The release strip: version, date and what the release was for,
+                  all three read out of the changelog at build time. */}
               <a
-                href={`${GH}/releases/tag/v1.9.0`}
-                className="chip chip-brand t-eyebrow transition-colors"
+                href={`${GH}/releases/tag/v${newest.version}`}
+                className="release-strip min-w-0"
               >
-                v1.9.0
+                <span className="release-version">v{newest.version}</span>
+                <span className="release-line truncate">
+                  <b>{longDate(newest.date)}</b>
+                  {newest.entries[0] && (
+                    <span className="hidden sm:inline">: {newest.entries[0]}</span>
+                  )}
+                </span>
+                <ArrowUpRight size={14} className="shrink-0 text-muted" />
               </a>
-              <span className="chip t-eyebrow">MIT licensed</span>
-              <span className="chip t-eyebrow">Early prototype</span>
             </div>
           </Enter>
-          <Enter delay={0.08}>
-            <h1 className="t-display mt-10 max-w-[22ch] text-balance">
+          <Enter delay={0.06}>
+            <p className="meta-row t-eyebrow mt-4">
+              <span>MIT licensed</span>
+              <span className="meta-dot">Early prototype</span>
+              <span className="meta-dot">One Go binary, no dependencies</span>
+            </p>
+          </Enter>
+          <Enter delay={0.12}>
+            <h1 className="t-display mt-8 max-w-[22ch] text-balance">
               A language where tensors are the primitive.
             </h1>
           </Enter>
-          <Enter delay={0.14}>
+          <Enter delay={0.18}>
             <p className="t-lead mt-6 max-w-[52ch]">
               twill is a small language where{" "}
               <code className="font-mono text-brand">grad</code> is built in and a shape
               mistake is an error you see before the program runs.
             </p>
           </Enter>
-          <Enter delay={0.2}>
+          <Enter delay={0.24}>
             <p className="mt-5 max-w-[62ch] text-sm leading-relaxed text-muted">
               Most machine-learning code is a language plus a numeric framework bolted on
               top. twill goes the other way: differentiation is a language operation rather
-              than a library call, and a static checker reads your shapes before anything
-              executes.
+              than a library call, a static checker reads your shapes before anything
+              executes, and the compiler is written in the language it compiles.
             </p>
           </Enter>
-          <Enter delay={0.28}>
+          <Enter delay={0.3}>
             <div className="mt-9 flex flex-wrap items-center gap-3">
-              <Link
-                href="/docs/tutorial/"
-                className="group inline-flex items-center gap-2 rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-medium text-on-brand transition-transform hover:scale-[1.02] active:scale-[0.99]"
-              >
+              <Link href="/docs/tutorial/" className="cta cta-primary group">
                 Start the tutorial
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
-              <a
-                href={`${GH}/releases`}
-                className="inline-flex items-center gap-2 rounded-lg border border-edge px-5 py-2.5 text-sm font-medium transition-colors hover:border-brand-fill"
-              >
+              <a href={`${GH}/releases`} className="cta cta-ghost">
                 <Download size={16} />
                 Download a binary
               </a>
             </div>
           </Enter>
-          <Enter delay={0.34}>
-            <div className="mt-5 max-w-full overflow-x-auto rounded-lg border border-edge px-4 py-3 font-mono text-[13px] text-muted">
-              <span className="select-none text-brand">$ </span>
-              <span className="whitespace-pre">go install github.com/twill-lang/twill/cmd/twill@latest</span>
+          <Enter delay={0.36}>
+            <div className="mt-5 flex items-center gap-2 rounded-lg border border-edge px-4 py-2 font-mono text-[13px] text-muted">
+              <span className="min-w-0 overflow-x-auto whitespace-pre">
+                <span className="select-none text-brand">$ </span>
+                {INSTALL}
+              </span>
+              <CopyButton text={INSTALL} label="Copy the install command" />
             </div>
           </Enter>
         </section>
 
         <Section
           n="01"
-          eyebrow="The whole of it"
-          title="Price a European call, then differentiate the pricer for its Greeks"
-          lead="No bumping, no second library. grad went through 200,000 simulated paths, a relu payoff and a mean, and landed on the closed-form Greeks."
-        >
-          <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr] lg:items-start">
-            <Code label="montecarlo_option.tw">{MONTE_CARLO}</Code>
-            <Term label="output">{MONTE_CARLO_OUT}</Term>
-          </div>
-        </Section>
-
-        <Section
-          n="02"
           eyebrow="Before anything runs"
           title="The most useful thing twill does is refuse to start"
-          lead="twill check infers tensor shapes across the whole program and reports the ones that cannot line up. Parameters can carry shape annotations, which turn a contract into something the checker enforces at every call site."
+          lead={`Change a dimension in the signature and watch the checker change its mind. The messages below are what the ${newest.version} binary prints for each of these programs, character for character, and the arithmetic deciding between them is the same one rule the checker uses: the inner dimensions of a matrix multiply have to agree.`}
         >
-          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-            <Code label="model.tw">{SHAPE_SIG}</Code>
-            <Term label="twill check">{SHAPE_OUT}</Term>
-          </div>
+          <ShapeLab />
           <p className="mt-6 max-w-[70ch] text-sm leading-relaxed text-muted">
             A dimension can be a literal, or a name. A name used more than once must be the
             same size, which is what lets the checker verify the return type of{" "}
             <code className="font-mono text-brand">fn mm(A: [n, k], B: [k, m]) -&gt; [n, m]</code>.
             The checker only flags a mismatch when it is certain: code whose shapes depend
             on runtime values is left alone rather than guessed at, so a clean run means
-            what it says.
+            what it says. And a clean run exits 0, so{" "}
+            <code className="font-mono text-brand">twill check</code> is a CI gate as it
+            stands.
           </p>
+        </Section>
+
+        <Section
+          n="02"
+          eyebrow="The whole of it"
+          title="Price a European call, then differentiate the pricer for its Greeks"
+          lead="No bumping, no second library. grad went through 200,000 simulated paths, a relu payoff and a mean, and landed on the closed-form Greeks."
+        >
+          <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr] lg:items-start">
+            <Code label="examples/montecarlo_option.tw">{MONTE_CARLO}</Code>
+            <Term label="output">{MONTE_CARLO_OUT}</Term>
+          </div>
         </Section>
 
         <Section n="03" eyebrow="Why" title="Three things fall out of building the language around it">
@@ -280,40 +481,106 @@ export default function Home() {
         >
           <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
             <Code label="notional.tw">{UNITS}</Code>
-            <Term label="twill check">{`$ twill check bad.tw\nbad.tw:6: shape error: unit mismatch: USD*share^-1 + share\n  6 | let bad = price + qty`}</Term>
+            <Term label="twill check">{UNITS_OUT}</Term>
           </div>
         </Section>
 
         <Section
           n="05"
-          eyebrow="New in 1.8 and 1.9"
-          title="Three walls the ecosystem kept hitting"
-          lead="Every entry here came from docs/needs.md in a library written in twill, ranked by how many of them hit the same wall independently. Two are additions and the third is a refusal: the checkers now reject a name defined twice in one file, which is the only change in either release that can turn a program that ran into one that does not compile. Shipped as v1.8.0 and v1.9.0 in September 2026."
+          eyebrow="Self-hosting"
+          title="twill is written in twill, and the claim is checked rather than asserted"
+          lead="The lexer, parser, checker, evaluator, tensor kernels, formatter and CLI are written in the language itself. What makes that a claim rather than a boast is the fourth line of this chain: the same corpus goes through both implementations and the bytes are compared."
         >
-          <Stagger className="hairline-grid grid sm:grid-cols-3">
-            {SINCE.map((c, i) => (
-              <StaggerItem key={c.title} className="bg-raised p-6">
-                <span className="t-eyebrow text-brand">{String(i + 1).padStart(2, "0")}</span>
-                <h3 className="mt-3 text-base font-semibold tracking-tight">{c.title}</h3>
-                <p className="mt-2.5 text-sm leading-relaxed text-muted">{c.body}</p>
-              </StaggerItem>
-            ))}
-          </Stagger>
+          <BootstrapChain />
+          <Reveal>
+            {/* `.tap` on each: these are standalone links in a row, not links
+                inside a sentence, so they are targets and get 44px. */}
+            <div className="mt-8 flex flex-wrap gap-x-6 text-sm">
+              <Link href="/docs/self-hosting/" className="tap text-link hover:underline">
+                How the port works
+              </Link>
+              <Link href="/docs/needs/" className="tap text-link hover:underline">
+                What is still missing
+              </Link>
+              <Link href="/docs/roadmap/" className="tap text-link hover:underline">
+                The ranked roadmap
+              </Link>
+            </div>
+          </Reveal>
         </Section>
 
         <Section
           n="06"
-          eyebrow="New in 1.7"
-          title="The two open questions: what a pattern is, and what can be generic"
-          lead="1.5 made the ecosystem run and 1.6 stopped the language having pieces missing from the middle. This one closes the two entries docs/needs.md called the largest open language questions, and closes them on the Go bootstrap and in the self-hosted compiler together. Nothing written before changes meaning: both are additions at positions that were previously syntax errors. Shipped as v1.7.0 on 20 August 2026."
+          eyebrow="What shipped"
+          title="Three walls the ecosystem kept hitting"
+          lead="Every entry here came from docs/roadmap.md, which ranks what the language is missing by how many of the independently written codebases hit each wall on their own. The list below is read out of the changelog when this page is built, so it is the releases the language actually has rather than the ones somebody remembered to type in."
+        >
+          <Reveal>
+            <ol className="hairline-grid grid sm:grid-cols-3">
+              {recent.map((r) => (
+                <li key={r.version} className="bg-raised p-5">
+                  <p className="t-eyebrow text-brand">v{r.version}</p>
+                  <p className="mt-1 text-xs text-faint">{longDate(r.date)}</p>
+                  <ul className="mt-3 space-y-2 text-sm leading-relaxed text-muted">
+                    {r.entries.map((e) => (
+                      <li key={e}>{e}</li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ol>
+          </Reveal>
+
+          <Figure
+            index="A"
+            version={`v${newest.version}`}
+            title="sort orders more than strings, and takes a comparison"
+            body={sortsBody}
+            source={SORT}
+            sourceLabel="sort_demo.tw"
+            output={SORT_OUT}
+            outputLabel="twill run"
+          />
+
+          <Figure
+            index="B"
+            version="v1.8.0"
+            title="A program can start another program, and never through a shell"
+            body="run(program, argv, dir) -> Res[Str, Str]. spool needed it to fetch a package at all: the package manager for a self-hosting language could not clone a repository. The program and its arguments stay separate values all the way to execve, so an argument reaches the program as text rather than as something a shell gets to read, which matters when the arguments are tags and URLs out of a manifest a stranger wrote. Ok carries stdout and only on an exit status of 0; stderr is the Err message and is never spliced into Ok. The blank line in the output below is git's own trailing newline, which arrives in stdout whole rather than being trimmed on the way. TWILL_NO_EXEC set to anything non-empty makes every call answer Err without starting anything, and an Err rather than an abort, so a program degrades to what it can still do."
+            source={RUN}
+            sourceLabel="head.tw"
+            output={RUN_OUT}
+            outputLabel="twill run"
+          />
+
+          {duplicateRefusalPending && (
+            <Figure
+              index="C"
+              version="on main"
+              pending
+              title="A function defined twice was silently the second one"
+              body="This one has merged and is not in a release yet, which is why the figure runs it twice. spool replaced two of its insertion sorts by writing the new one-line versions above the old bodies, which stayed; both files kept running the insertion sort through a passing test suite, a passing source gate and passing CI. There is no conditional compilation in this language, so a second declaration of one name in one file is an edit that went wrong, and the sweep of the ecosystem's twill sources that preceded the change found no case that was not. Both checkers refuse it now, and the message names which definition runs."
+              source={DUPLICATE}
+              sourceLabel="lockfile.tw"
+              output={duplicateOut(newest.version)}
+              outputLabel="twill check, twice"
+            />
+          )}
+        </Section>
+
+        <Section
+          n="07"
+          eyebrow="The language"
+          title="What a pattern is, and what can be generic"
+          lead="Two things the language was missing from the middle, and both are checked by the Go bootstrap and by the compiler written in twill, which is the check this project exists to be able to make."
         >
           <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-            <Code label="patterns.tw">{PATTERNS_TW}</Code>
-            <Term label="twill check">{MATCH_OUT}</Term>
+            <Code label="expr.tw">{PATTERNS}</Code>
+            <Term label="twill check">{PATTERNS_OUT}</Term>
           </div>
 
           <Stagger className="hairline-grid mt-8 grid sm:grid-cols-2">
-            {COMPLETENESS.map((c, i) => (
+            {LANGUAGE.map((c, i) => (
               <StaggerItem key={c.title} className="bg-raised p-6">
                 <span className="t-eyebrow text-brand">{String(i + 1).padStart(2, "0")}</span>
                 <h3 className="mt-3 text-base font-semibold tracking-tight">{c.title}</h3>
@@ -335,73 +602,13 @@ export default function Home() {
               </dl>
             </div>
           </Reveal>
-
-          <Reveal>
-            <p className="mt-8 max-w-[74ch] text-sm leading-relaxed text-muted">
-              The release is the two candidates that made it. rc1 was the language work
-              above; rc2 is what nine repositories found when they were moved onto rc1 and
-              made to use it, and none of those findings was reachable from twill&rsquo;s own
-              sources. Between rc2 and the tag the compiler did not change -- what changed
-              is that those nine now run their suites against it in CI rather than on one
-              developer&rsquo;s machine: 60 suites, nine repositories, green. Across them{" "}
-              <code className="font-mono text-brand">twill check</code> reports 10 unresolved
-              names, all of them primitives that genuinely do not exist yet, down from 31.
-              Systems-mode code can newly fail to check, which is the point of the release.
-              Three run-time behaviours change for a program relying on them: an{" "}
-              <code className="font-mono text-brand">I64</code> division or modulo by zero is
-              an error rather than an infinity or a NaN,{" "}
-              <code className="font-mono text-brand">%</code> on two{" "}
-              <code className="font-mono text-brand">I64</code>s takes the sign of the
-              dividend, and a failing <code className="font-mono text-brand">?</code> at the
-              top level stops with a message rather than exiting 0.
-            </p>
-          </Reveal>
-        </Section>
-
-        <Section n="07" eyebrow="Self-hosting" title="twill is being written in twill">
-          <Reveal>
-            <div className="rounded-xl border border-brand-fill/35 bg-raised p-6 sm:p-8">
-              <p className="max-w-[72ch] text-sm leading-relaxed text-muted">
-                As of v1.4.0 this runs. The lexer, parser, checker, evaluator, tensor
-                kernels, formatter and CLI are written in the language itself, and the whole
-                tree executes on the Go bootstrap and reproduces the reference across every
-                stage: <code className="font-mono text-brand">twill check</code> matched the
-                Go command byte for byte on every corpus file, and{" "}
-                <code className="font-mono text-brand">twill fmt</code> on every one it
-                formats.
-              </p>
-              <p className="mt-4 max-w-[72ch] text-sm leading-relaxed text-muted">
-                1.6 held the formatter to that claim rather than asserting it: a corpus
-                test over 461 files now checks that <code className="font-mono text-brand">twill fmt</code>{" "}
-                parses, is idempotent, and keeps every comment and every statement. It was
-                added because the printer had no case for a{" "}
-                <code className="font-mono text-brand">unit</code> declaration and{" "}
-                <code className="font-mono text-brand">--write</code> was deleting them from
-                the file, in the Go printer and the self-hosted one alike.
-              </p>
-              <p className="mt-4 max-w-[72ch] text-sm leading-relaxed text-muted">
-                Designing the subset a compiler needs was the point of doing it. Writing the
-                compiler first is how you find out what the subset has to be, instead of
-                guessing. It has already produced a numbered work queue of what the language
-                still needs, and a real bug in the reference lexer.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-5 text-sm">
-                <Link href="/docs/self-hosting/" className="text-link hover:underline">
-                  How the port works
-                </Link>
-                <Link href="/docs/needs/" className="text-link hover:underline">
-                  What is still missing
-                </Link>
-              </div>
-            </div>
-          </Reveal>
         </Section>
 
         <Section
           n="08"
           eyebrow="The ecosystem"
-          title="Ten repositories, one language"
-          lead="Everything downstream of the compiler is written in twill itself, which is the same experiment run again: a real program against the subset, with its own list of what is missing."
+          title={`${cap(word(ECOSYSTEM.length))} repositories, ${word(ECOSYSTEM.length - 1)} of them written in twill`}
+          lead="Everything downstream of the compiler is written in twill itself, which is the same experiment run again: a real program against the subset, with its own list of what is missing. Those lists are what the roadmap ranks."
         >
           <Stagger className="hairline-grid grid sm:grid-cols-2" step={0.035}>
             {ECOSYSTEM.map((r) => (
@@ -440,10 +647,7 @@ export default function Home() {
 
         <Section n="10" eyebrow="Read on" title="Documentation">
           <Reveal>
-            <Link
-              href="/docs/"
-              className="group inline-flex items-center gap-2 rounded-lg bg-brand-fill px-5 py-2.5 text-sm font-medium text-on-brand transition-transform hover:scale-[1.02]"
-            >
+            <Link href="/docs/" className="cta cta-primary group">
               <Book size={16} />
               Browse the docs
               <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
@@ -453,6 +657,53 @@ export default function Home() {
       </main>
       <Footer />
     </>
+  );
+}
+
+/**
+ * One release, given a figure.
+ *
+ * Sections 01, 02, 04 and 07 all pair source with the output it produced, which
+ * is the strongest visual idea this page has; the release section used to be
+ * three text cards and nothing else, so the newest work was the only work on the
+ * page with no evidence attached to it.
+ */
+function Figure({
+  index,
+  version,
+  title,
+  body,
+  source,
+  sourceLabel,
+  output,
+  outputLabel,
+  pending = false,
+}: {
+  index: string;
+  version: string;
+  title: string;
+  body: string;
+  source: string;
+  sourceLabel: string;
+  output: string;
+  outputLabel: string;
+  pending?: boolean;
+}) {
+  return (
+    <Reveal>
+      <div className="mt-12 border-t border-edge pt-8">
+        <p className="t-eyebrow flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-brand">{index}</span>
+          <span className={pending ? "text-[var(--warn)]" : "text-muted"}>{version}</span>
+        </p>
+        <h3 className="t-title mt-3 max-w-[26ch] text-balance">{title}</h3>
+        <p className="mt-4 max-w-[70ch] text-sm leading-relaxed text-muted">{body}</p>
+        <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
+          <Code label={sourceLabel}>{source}</Code>
+          <Term label={outputLabel}>{output}</Term>
+        </div>
+      </div>
+    </Reveal>
   );
 }
 

@@ -1,0 +1,68 @@
+name: Check
+
+# Nothing checked this repository before a merge. The only gate was `next build`
+# inside deploy.yml, which runs AFTER the push to main, so a change that broke
+# the build was already merged by the time anyone found out and the previously
+# deployed site stayed live with nothing but a red run to say otherwise.
+#
+# This runs the same two commands on the pull request instead.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # package.json has defined this since the site was written and no workflow
+      # ever ran it. `next build` type-checks as a side effect, which is why the
+      # gap went unnoticed; running it on its own gives a failure that says
+      # "types" rather than "build" and takes a second rather than a minute.
+      - run: npm run typecheck
+
+      # The docs, the changelog and the two corpus counts are fetched from
+      # twill-lang/twill during this, so it is also the check that every
+      # published doc still exists upstream, that the changelog is still shaped
+      # the way lib/releases.ts parses, and that the definitions lib/corpus.ts
+      # reads the corpus sizes out of are still where it looks for them.
+      - run: npm run build
+        # lib/corpus.ts reads the compiler repository's git tree through
+        # api.github.com, which is sixty requests an hour per IP without a
+        # token and shared with every other job on the runner. The token the
+        # workflow already has raises that to five thousand; the build throws
+        # rather than guessing at a number, so the alternative to passing it is
+        # a red run on somebody else's traffic.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # The claim this site kept making about itself, as a number instead of an
+      # adjective. It loads every built page in Chrome with the document hidden,
+      # requestAnimationFrame and IntersectionObserver never delivered and the
+      # animation timeline pinned at zero, walks every element, and fails if any
+      # of them computes to opacity 0. Twice now a revision has shipped saying
+      # "nothing is hidden at rest" while the home page lost the shape error
+      # message under exactly those conditions, which is the one sentence on the
+      # site that cannot be missing.
+      #
+      # Chrome is preinstalled on the GitHub-hosted runner images; the script
+      # also takes a CHROME environment variable and finds a local Playwright
+      # download, and it exits 2 with the list of paths it tried rather than
+      # passing quietly when there is no browser to check with.
+      - run: npm run audit:hidden

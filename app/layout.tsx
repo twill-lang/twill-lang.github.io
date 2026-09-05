@@ -84,10 +84,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* Ahead of everything, so the temper is settled before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        {/* The entrance state is inline on the prerendered markup, so without JS
-            it would never be animated away. */}
+        {/* The entrances used to need an override here, because their start
+            state was written into the prerendered markup and only a script
+            could clear it. They do not any more: nothing on this site is
+            hidden at rest, so a page with no script is the finished page.
+            See components/motion.tsx.
+
+            What is left is the two controls that genuinely do nothing without
+            JavaScript. The docs disclosure and the search field are hidden
+            rather than left on the page as dead furniture; the nav's Docs link
+            still reaches the index, which lists every page. */}
         <noscript>
-          <style>{`.reveal{opacity:1!important;transform:none!important}`}</style>
+          <style>{`.doc-bar,.doc-search{display:none}`}</style>
         </noscript>
         <script
           type="application/ld+json"

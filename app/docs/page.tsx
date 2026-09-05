@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { DOCS, SECTIONS } from "@/lib/docs";
+import { DOCS, SECTIONS, searchIndex } from "@/lib/docs";
+import { DocsSearch } from "@/components/docs-nav";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Footer, Nav } from "@/components/chrome";
 import { ArrowRight } from "@/components/icons";
@@ -12,7 +13,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/docs/" },
 };
 
-export default function DocsIndex() {
+export default async function DocsIndex() {
+  const index = await searchIndex();
+
   return (
     <>
       <Nav />
@@ -30,6 +33,9 @@ export default function DocsIndex() {
             </a>
             , rendered at build time. There is no second copy to go stale.
           </p>
+          <div className="mt-7 max-w-[28rem]">
+            <DocsSearch index={index} />
+          </div>
         </Reveal>
 
         {SECTIONS.map((section, s) => {
