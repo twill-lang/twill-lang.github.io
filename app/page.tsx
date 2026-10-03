@@ -199,6 +199,37 @@ $ TWILL_NO_EXEC=1 twill run head.tw
 git said: run: refused to start "git" because TWILL_NO_EXEC is set
 `;
 
+const NAMED = `
+mode systems
+
+# A parameter can carry a default, and a call can name its arguments, so a
+# function of many settings is called with only the ones that differ, in any
+# order. Builtins stay positional; this is for the functions you write.
+fn axis(label: Str, lo: I64 = 0, hi: I64 = 100, step: I64 = 10) {
+  write_out(label)
+  write_out(": ")
+  write_out(str(lo))
+  write_out("..")
+  write_out(str(hi))
+  write_out(" by ")
+  write_out(str(step))
+  write_out("\\n")
+}
+
+fn main() {
+  axis("x")                 # every optional takes its default
+  axis("y", hi: 50)         # name just the one that differs
+  axis("t", step: 5, lo: 1) # named, in any order
+}
+`;
+
+const NAMED_OUT = `
+$ twill run axes.tw
+x: 0..100 by 10
+y: 0..50 by 10
+t: 1..100 by 5
+`;
+
 const DUPLICATE = `
 mode systems
 
@@ -553,9 +584,20 @@ export default async function Home() {
             outputLabel="twill run"
           />
 
+          <Figure
+            index="C"
+            version={`v${newest.version}`}
+            title="A function of many settings takes only the ones that differ"
+            body="Named and optional arguments, the open half of the roadmap's entry 29. A parameter can carry a default and a call can name its arguments, so a function of a dozen settings is no longer twelve positions at every call site: the defaults fill what is not given, and a name picks out the one setting that differs without counting commas to reach it. Named arguments follow the positional ones and may come in any order. Builtins stay positional, since their arities are nameless word lists with no parameter to bind a name to, so a named argument to one is a checker error rather than a silently dropped word. The ordinary positional call is unchanged, down to its arity message, and both the Go bootstrap and the compiler written in twill bind the same way, which a conformance case checks."
+            source={NAMED}
+            sourceLabel="axes.tw"
+            output={NAMED_OUT}
+            outputLabel="twill run"
+          />
+
           {duplicateRefusalPending && (
             <Figure
-              index="C"
+              index="D"
               version="on main"
               pending
               title="A function defined twice was silently the second one"
